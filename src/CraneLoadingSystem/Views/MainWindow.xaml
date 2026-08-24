@@ -1,0 +1,221 @@
+<Window x:Class="CraneLoadingSystem.Views.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:views="clr-namespace:CraneLoadingSystem.Views"
+        xmlns:models="clr-namespace:CraneLoadingSystem.Models"
+        Title="{Binding AppTitle}" Height="900" Width="1500" MinHeight="600" MinWidth="1100"
+        WindowStartupLocation="CenterScreen"
+        Background="#FFF0F2F5" FontFamily="Segoe UI" FontSize="12"
+        Closing="Window_Closing" Loaded="Window_Loaded">
+
+    <Window.Resources>
+        <!-- 通用样式 -->
+        <Style TargetType="TabItem" x:Key="OrderTabItem">
+            <Setter Property="FontSize" Value="13"/>
+            <Setter Property="Padding" Value="12,6"/>
+        </Style>
+
+        <Style TargetType="Button" x:Key="ToolbarBtn">
+            <Setter Property="Height" Value="34"/>
+            <Setter Property="MinWidth" Value="96"/>
+            <Setter Property="Margin" Value="0,0,8,0"/>
+            <Setter Property="Padding" Value="10,0"/>
+            <Setter Property="FontSize" Value="12"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+        </Style>
+
+        <Style TargetType="Button" x:Key="SmallBtn">
+            <Setter Property="Height" Value="26"/>
+            <Setter Property="Padding" Value="10,0"/>
+            <Setter Property="FontSize" Value="11"/>
+            <Setter Property="Margin" Value="2,0"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="BorderThickness" Value="0"/>
+        </Style>
+
+        <!-- 单据行样式 -->
+        <Style x:Key="OrderRowStyle" TargetType="DataGridRow">
+            <Setter Property="Height" Value="32"/>
+            <Setter Property="FontSize" Value="12"/>
+        </Style>
+
+        <Style TargetType="DataGridCell">
+            <Setter Property="VerticalAlignment" Value="Center"/>
+            <Setter Property="Padding" Value="4,2"/>
+        </Style>
+    </Window.Resources>
+
+    <DockPanel>
+        <!-- 顶部标题栏 + 工具条 -->
+        <Border DockPanel.Dock="Top" Background="#FF1F2937">
+            <StackPanel TextElement.Foreground="White">
+                <!-- 标题栏 -->
+                <Grid Height="48" Margin="16,0,16,0">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="Auto"/>
+                    </Grid.ColumnDefinitions>
+                    <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                        <TextBlock Text="⛽" FontSize="26" Margin="0,0,10,0"/>
+                        <TextBlock FontSize="18" FontWeight="Bold" Text="{Binding AppTitle}" VerticalAlignment="Center"/>
+                        <Separator Width="2" Background="#374151" Margin="16,8"/>
+                        <TextBlock Text="运行时间: " Foreground="#9CA3AF" VerticalAlignment="Center" Margin="0,0,4,0"/>
+                        <TextBlock x:Name="RunTimeText" Foreground="#60A5FA" FontWeight="SemiBold" VerticalAlignment="Center"/>
+                    </StackPanel>
+
+                    <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
+                        <!-- PLC连接状态 -->
+                        <StackPanel Orientation="Horizontal" Margin="0,0,20,0" VerticalAlignment="Center">
+                            <Ellipse x:Name="PlcConnEllipse" Width="10" Height="10" Fill="Red" Margin="0,0,6,0"/>
+                            <TextBlock x:Name="PlcConnText" Text="PLC 未连接" Foreground="#EF4444" FontSize="12" VerticalAlignment="Center"/>
+                        </StackPanel>
+
+                        <!-- SAP/ERP状态 -->
+                        <StackPanel Orientation="Horizontal" Margin="0,0,20,0" VerticalAlignment="Center">
+                            <Ellipse Width="10" Height="10" x:Name="SapConnEllipse" Fill="#F59E0B" Margin="0,0,6,0"/>
+                            <TextBlock x:Name="SapConnText" Text="SAP 待检测" Foreground="#FCD34D" FontSize="12" VerticalAlignment="Center"/>
+                        </StackPanel>
+
+                        <TextBlock x:Name="ClockText" Text="00:00:00" FontSize="18" FontWeight="Bold" Foreground="#60A5FA"
+                                   VerticalAlignment="Center" Margin="10,0,0,0" FontFamily="Consolas"/>
+                    </StackPanel>
+                </Grid>
+
+                <!-- 工具栏 -->
+                <Border Background="#FF111827" Padding="10,8">
+                    <WrapPanel>
+                        <Button Style="{StaticResource ToolbarBtn}" Content="🔄 刷新SAP/ERP单据"
+                                Background="#FF3B82F6" Foreground="White" Click="RefreshOrders_Click"/>
+                        <Button Style="{StaticResource ToolbarBtn}" Content="📦 手动创建单据"
+                                Background="#FF10B981" Foreground="White" Click="CreateManualOrder_Click"/>
+                        <Separator Width="1" Margin="4,0" Background="#FF374151"/>
+                        <Button Style="{StaticResource ToolbarBtn}" Content="📊 鹤位布局"
+                                Background="#FF6366F1" Foreground="White" Click="ToggleLayout_Click"/>
+                        <Button Style="{StaticResource ToolbarBtn}" Content="⚙ 系统设置"
+                                Background="#FF4B5563" Foreground="White" Click="OpenSettings_Click"/>
+                        <Button Style="{StaticResource ToolbarBtn}" Content="⚠ 全局紧急停止"
+                                Background="#FFDC2626" Foreground="White" FontWeight="Bold"
+                                Click="GlobalEmergency_Click"/>
+                    </WrapPanel>
+                </Border>
+            </StackPanel>
+        </Border>
+
+        <!-- 主内容区：左单据 + 右鹤位 -->
+        <Grid>
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="460" MinWidth="380"/>
+                <ColumnDefinition Width="Auto"/>
+                <ColumnDefinition Width="*"/>
+            </Grid.ColumnDefinitions>
+
+            <!-- 左侧：单据管理 -->
+            <Border Grid.Column="0" Background="White" Margin="8" CornerRadius="6" BorderBrush="#E5E7EB" BorderThickness="1">
+                <Grid>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="*"/>
+                    </Grid.RowDefinitions>
+
+                    <!-- Tab切换 -->
+                    <TabControl Grid.Row="0" x:Name="OrderTabs" SelectionChanged="OrderTabs_SelectionChanged"
+                                Background="Transparent" BorderThickness="0" TabStripPlacement="Top">
+                        <TabItem Header="📋 待下发" Style="{StaticResource OrderTabItem}"/>
+                        <TabItem Header="⏳ 进行中" Style="{StaticResource OrderTabItem}"/>
+                        <TabItem Header="✅ 已完成" Style="{StaticResource OrderTabItem}"/>
+                    </TabControl>
+
+                    <!-- DataGrid显示单据 -->
+                    <DataGrid Grid.Row="1" x:Name="OrdersGrid" AutoGenerateColumns="False"
+                              GridLinesVisibility="Horizontal" HeadersVisibility="Column"
+                              RowStyle="{StaticResource OrderRowStyle}"
+                              SelectionMode="Single" SelectionUnit="FullRow"
+                              CanUserAddRows="False" CanUserDeleteRows="False"
+                              IsReadOnly="True" Background="White" BorderThickness="0"
+                              MouseDoubleClick="OrdersGrid_MouseDoubleClick">
+                        <DataGrid.Columns>
+                            <DataGridTextColumn Header="单据号" Binding="{Binding OrderNo}" Width="140"/>
+                            <DataGridTextColumn Header="车牌" Binding="{Binding VehicleNo}" Width="80"/>
+                            <DataGridTextColumn Header="产品" Binding="{Binding ProductName}" Width="110"/>
+                            <DataGridTextColumn Header="计划量" Binding="{Binding PlannedWeight, StringFormat='{}{0:0}'}" Width="70"/>
+                            <DataGridTextColumn Header="鹤位" Binding="{Binding AssignedCraneId}" Width="60"/>
+                            <DataGridTextColumn Header="状态" Width="70">
+                                <DataGridTextColumn.ElementStyle>
+                                    <Style TargetType="TextBlock">
+                                        <Setter Property="Foreground" Value="#555"/>
+                                        <Style.Triggers>
+                                            <DataTrigger Binding="{Binding Status}" Value="Created">
+                                                <Setter Property="Foreground" Value="#F59E0B"/>
+                                            </DataTrigger>
+                                            <DataTrigger Binding="{Binding Status}" Value="Dispatched">
+                                                <Setter Property="Foreground" Value="#17A2B8"/>
+                                            </DataTrigger>
+                                            <DataTrigger Binding="{Binding Status}" Value="InProgress">
+                                                <Setter Property="Foreground" Value="#28A745"/>
+                                            </DataTrigger>
+                                            <DataTrigger Binding="{Binding Status}" Value="Completed">
+                                                <Setter Property="Foreground" Value="#007BFF"/>
+                                            </DataTrigger>
+                                            <DataTrigger Binding="{Binding Status}" Value="Cancelled">
+                                                <Setter Property="Foreground" Value="#DC3545"/>
+                                            </DataTrigger>
+                                        </Style.Triggers>
+                                    </Style>
+                                </DataGridTextColumn.ElementStyle>
+                                <DataGridTextColumn.Binding>
+                                    <Binding Path="Status"/>
+                                </DataGridTextColumn.Binding>
+                            </DataGridTextColumn>
+                        </DataGrid.Columns>
+
+                        <DataGrid.ContextMenu>
+                            <ContextMenu>
+                                <MenuItem Header="✉ 下发到鹤位" Click="DispatchOrderMenu_Click" x:Name="DispatchMenu"/>
+                                <MenuItem Header="❌ 取消单据" Click="CancelOrderMenu_Click" x:Name="CancelMenu"/>
+                            </ContextMenu>
+                        </DataGrid.ContextMenu>
+                    </DataGrid>
+                </Grid>
+            </Border>
+
+            <!-- 分隔条 -->
+            <GridSplitter Grid.Column="1" Width="4" ResizeBehavior="PreviousAndCurrent"
+                          HorizontalAlignment="Stretch" Background="#FFCBD5E1" ShowsPreview="True"/>
+
+            <!-- 右侧：多鹤位MDI容器 -->
+            <Border Grid.Column="2" Background="Transparent" Margin="8,8,8,8">
+                <Grid>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="*"/>
+                    </Grid.RowDefinitions>
+
+                    <!-- 鹤位标签栏 -->
+                    <Border Grid.Row="0" Background="White" CornerRadius="6,6,0,0"
+                            BorderBrush="#E5E7EB" BorderThickness="1,1,1,0" Padding="8,4">
+                        <WrapPanel x:Name="CraneHeaderPanel"/>
+                    </Border>
+
+                    <!-- 鹤位卡片WrapPanel布局（多鹤位同时显示） -->
+                    <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Auto"
+                                  Background="White"
+                                  BorderBrush="#E5E7EB" BorderThickness="1">
+                        <WrapPanel x:Name="CraneWrapPanel" Orientation="Horizontal" Margin="4,8"/>
+                    </ScrollViewer>
+                </Grid>
+            </Border>
+        </Grid>
+
+        <!-- 底部状态栏 -->
+        <Border DockPanel.Dock="Bottom" Background="#FF374151" Height="28"
+                VerticalAlignment="Bottom" Padding="16,0">
+            <Grid>
+                <TextBlock Text="{Binding StatusBarText}" Foreground="#D1D5DB" VerticalAlignment="Center" FontSize="11"/>
+                <TextBlock x:Name="StatusRight" HorizontalAlignment="Right" Foreground="#9CA3AF"
+                           VerticalAlignment="Center" FontSize="11"/>
+            </Grid>
+        </Border>
+    </DockPanel>
+</Window>

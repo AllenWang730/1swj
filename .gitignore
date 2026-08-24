@@ -1,0 +1,68 @@
+# =========== Visual Studio ===========
+.vs/
+*.suo
+*.user
+*.userosscache
+*.sln.docstates
+
+# =========== Build Results ===========
+[Dd]ebug/
+[Rr]elease/
+x64/
+x86/
+bld/
+[Bb]in/
+[Oo]bj/
+[Ll]og/
+[Ll]ogs/
+
+# =========== .NET Core ===========
+project.lock.json
+project.fragment.lock.json
+artifacts/
+*.psess
+*.vsp
+*.vspx
+*.sap
+
+# =========== NuGet ===========
+packages/
+*.nupkg
+nuget.exe
+*.snupkg
+
+# =========== Rider / JetBrains ===========
+.idea/
+*.sln.iml
+
+# =========== VS Code ===========
+.vscode/
+!.vscode/settings.json
+!.vscode/tasks.json
+!.vscode/launch.json
+!.vscode/extensions.json
+
+# =========== Windows ===========
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+$RECYCLE.BIN/
+*.lnk
+
+# =========== 发布/临时文件 ===========
+publish/
+*.zip
+*.bak
+*.tmp
+*.log
+appsettings.*.json
+!appsettings.json
+
+# =========== 证书/密钥 ===========
+*.pfx
+*.key
+*.pem
+*.cer
+
+# =========== 用户秘密 ===========
+secrets.json
