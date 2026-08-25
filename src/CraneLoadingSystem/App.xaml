@@ -5,14 +5,7 @@
              DispatcherUnhandledException="App_DispatcherUnhandledException">
     <Application.Resources>
         <ResourceDictionary>
-            <ResourceDictionary.MergedDictionaries>
-                <!-- Material Design 基础主题 (v5.x：Defaults.xaml 已合并到主主题中) -->
-                <ResourceDictionary Source="pack://application:,,,/MaterialDesignThemes.Wpf;component/Themes/MaterialDesignTheme.Light.xaml" />
-                <ResourceDictionary Source="pack://application:,,,/MaterialDesignColors;component/Themes/Recommended/Primary/MaterialDesignColor.Blue.xaml" />
-                <ResourceDictionary Source="pack://application:,,,/MaterialDesignColors;component/Themes/Recommended/Accent/MaterialDesignColor.Indigo.xaml" />
-            </ResourceDictionary.MergedDictionaries>
-
-            <!-- 全局应用样式 -->
+            <!-- 全局应用样式（不依赖 MaterialDesign，使用原生 WPF 样式） -->
             <Style TargetType="Button">
                 <Setter Property="FontFamily" Value="Segoe UI"/>
                 <Setter Property="Template">
