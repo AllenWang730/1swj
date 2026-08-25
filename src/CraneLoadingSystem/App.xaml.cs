@@ -120,8 +120,6 @@ public partial class App : Application
         services.AddSingleton<ISafetyInterlockService, SafetyInterlockService>();
         services.AddSingleton<ICraneManagerService, CraneManagerService>();
         services.AddSingleton<IOrderManagementService, OrderManagementService>();
-        services.AddSingleton<ISapService, SapService>();
-        services.AddSingleton<IErpService, ErpService>();
 
         // View / ViewModel（每次解析创建新实例，支持多开对话框）
         services.AddTransient<MainWindowViewModel>();
