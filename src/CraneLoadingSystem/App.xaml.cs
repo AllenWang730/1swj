@@ -153,7 +153,7 @@ public partial class App : Application
                 [DllImport("user32.dll")]
                 static extern IntPtr FindWindow(string lpClassName, string lpWindowName);
 
-                var hWnd = FindWindow(null, "流体装卸鹤位上位机监控系统 v1.0");
+                var hWnd = FindWindow(null!, "流体装卸鹤位上位机监控系统 v1.0");
                 if (hWnd != IntPtr.Zero) SetForegroundWindow(hWnd);
             }
             catch { /* ignore */ }

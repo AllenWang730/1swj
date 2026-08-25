@@ -142,6 +142,22 @@ public partial class MainWindow : Window
         CraneWrapPanel.Children.Clear();
         CraneHeaderPanel.Children.Clear();
 
+        Log.Information("[Main] BuildCraneCards 开始，鹤位数: {Count}", _vm.CraneManager.Cranes.Count);
+
+        if (_vm.CraneManager.Cranes.Count == 0)
+        {
+            CraneWrapPanel.Children.Add(new TextBlock
+            {
+                Text = "⚠ 未加载到任何鹤位数据，请检查配置文件和 PLC 连接",
+                FontSize = 16,
+                Foreground = Brushes.Red,
+                Margin = new Thickness(20),
+                HorizontalAlignment = HorizontalAlignment.Center,
+                VerticalAlignment = VerticalAlignment.Center
+            });
+            return;
+        }
+
         foreach (var crane in _vm.CraneManager.Cranes)
         {
             // Header按钮
@@ -169,15 +185,17 @@ public partial class MainWindow : Window
             card.Crane = crane;
             card.Tag = crane.Id;
 
-            // 卡片大小自适应
-            if (_layoutMode == 0)
-                card.Width = 480;
-            else if (_layoutMode == 1)
-                card.Width = double.NaN;
+            // 卡片大小
+            card.Width = 480;
             card.MinWidth = 420;
+            card.MinHeight = 520;
             card.Margin = new Thickness(4);
             CraneWrapPanel.Children.Add(card);
+
+            Log.Information("[Main] 鹤位卡片已添加: {Id} - {Name}", crane.Id, crane.Name);
         }
+
+        Log.Information("[Main] BuildCraneCards 完成，共添加 {Count} 张卡片", CraneWrapPanel.Children.Count);
     }
 
     private void HighlightCraneCard(string craneId)
