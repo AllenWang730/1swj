@@ -219,10 +219,13 @@ public class CraneManagerService : ICraneManagerService
 
     public IEnumerable<CranePosition> GetAvailableCranesForProduct(string productCode)
     {
-        // 简单策略：产品名匹配且鹤位是空闲/就绪状态的
+        // 产品匹配策略：鹤位产品名与单据产品名/编码做双向包含匹配
         return Cranes.Where(c =>
             (c.Status == CraneStatus.Idle || c.Status == CraneStatus.Ready || c.Status == CraneStatus.Completed)
-            && (string.IsNullOrEmpty(productCode) || c.Config.ProductName.Contains(productCode) || c.Config.ProductName == productCode));
+            && (string.IsNullOrEmpty(productCode)
+                || c.Config.ProductName.Contains(productCode)
+                || productCode.Contains(c.Config.ProductName)
+                || c.Config.ProductName == productCode));
     }
 
     /// <summary>

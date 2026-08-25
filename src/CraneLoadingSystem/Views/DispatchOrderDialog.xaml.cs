@@ -58,9 +58,11 @@ public partial class DispatchDialogViewModel : ObservableObject
     private void RefreshAvailableCranes()
     {
         AvailableCranes.Clear();
-        var productCode = SelectedOrder?.ProductCode ?? SelectedOrder?.ProductName ?? "";
-        var list = _craneMgr.GetAvailableCranesForProduct(productCode).ToList();
+        // 优先用产品名匹配（比产品编码更可靠）
+        var productKey = SelectedOrder?.ProductName ?? SelectedOrder?.ProductCode ?? "";
+        var list = _craneMgr.GetAvailableCranesForProduct(productKey).ToList();
         if (list.Count == 0)
+            // 兜底：返回所有空闲/就绪/已完成的鹤位（不限制产品）
             list = _craneMgr.Cranes.Where(c => c.Status is CraneStatus.Idle or CraneStatus.Ready or CraneStatus.Completed).ToList();
 
         foreach (var c in list) AvailableCranes.Add(c);
