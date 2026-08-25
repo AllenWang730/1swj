@@ -14,6 +14,7 @@ public partial class OrderManagementService : ObservableObject, IOrderManagement
     private readonly ISapService _sapService;
     private readonly IErpService _erpService;
     private readonly ICraneManagerService _craneManager;
+    private readonly IDatabaseService? _db;
 
     public ObservableCollection<LoadingOrder> PendingOrders { get; } = new();
     public ObservableCollection<LoadingOrder> ActiveOrders { get; } = new();
@@ -21,11 +22,12 @@ public partial class OrderManagementService : ObservableObject, IOrderManagement
 
     private readonly object _lockObj = new();
 
-    public OrderManagementService(ISapService sapService, IErpService erpService, ICraneManagerService craneManager)
+    public OrderManagementService(ISapService sapService, IErpService erpService, ICraneManagerService craneManager, IDatabaseService? db = null)
     {
         _sapService = sapService;
         _erpService = erpService;
         _craneManager = craneManager;
+        _db = db;
     }
 
     public async Task<int> RefreshOrdersFromSourceAsync(CancellationToken cancellationToken = default)
@@ -117,6 +119,16 @@ public partial class OrderManagementService : ObservableObject, IOrderManagement
             {
                 order.Status = OrderStatus.InProgress;
                 lock (_lockObj) ActiveOrders.Add(order);
+                _db?.InsertOrderHistory(order);
+                _db?.InsertOperationLog(new OperationLog
+                {
+                    Time = DateTime.Now,
+                    Operator = "System",
+                    Action = "DispatchOrder",
+                    CraneId = craneId,
+                    OrderNo = orderNo,
+                    Detail = $"单据下发到鹤位 {crane.Name}，产品 {order.ProductName}，计划 {order.PlannedWeight:F0}kg"
+                });
                 Log.Information("[OrderMgr] 单据 {OrderNo} 成功下发到鹤位 {CraneId} 并启动装料", orderNo, craneId);
                 return true;
             }
@@ -199,6 +211,16 @@ public partial class OrderManagementService : ObservableObject, IOrderManagement
 
             // 清理鹤位
             crane.Status = CraneStatus.Completed;
+            _db?.UpdateOrderStatus(order.OrderNo, OrderStatus.Completed.ToString(), actualWeight, endTime);
+            _db?.InsertOperationLog(new OperationLog
+            {
+                Time = DateTime.Now,
+                Operator = "System",
+                Action = "OrderCompleted",
+                CraneId = craneId,
+                OrderNo = order.OrderNo,
+                Detail = $"装车完成，实际 {actualWeight:F2}kg"
+            });
             Log.Information("[OrderMgr] 单据 {OrderNo} 完成处理结束", order.OrderNo);
             return true;
         }

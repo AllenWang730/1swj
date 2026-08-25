@@ -80,7 +80,12 @@ public partial class App : Application
 
             Log.Information("[App] 依赖注入容器构建完成");
 
-            // === 5. 显示主窗口 ===
+            // === 5. 初始化数据库 ===
+            var dbService = (IDatabaseService)Services.GetService(typeof(IDatabaseService))!;
+            dbService.Initialize();
+            Log.Information("[App] 数据库初始化完成");
+
+            // === 6. 显示主窗口 ===
             var mainVm = Services.GetRequiredService<MainWindowViewModel>();
             var mainWindow = new MainWindow(mainVm);
             MainWindow = mainWindow;
@@ -115,6 +120,8 @@ public partial class App : Application
         services.AddHttpClient<IErpService, ErpService>();
 
         // 单例：核心服务
+        services.AddSingleton<IDatabaseService>(sp =>
+            new DatabaseService(AppConfig.Database.ConnectionString));
         services.AddSingleton<IPlcControlService, PlcControlService>();
         services.AddSingleton<IAlarmManagerService, AlarmManagerService>();
         services.AddSingleton<ISafetyInterlockService, SafetyInterlockService>();

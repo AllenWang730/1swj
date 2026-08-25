@@ -97,7 +97,7 @@ public partial class DispatchOrderDialog : Window
         Title = $"下发单据 {order.OrderNo} 到鹤位";
     }
 
-    private void ConfirmButton_Click(object sender, RoutedEventArgs e)
+    private async void ConfirmButton_Click(object sender, RoutedEventArgs e)
     {
         if (_vm.SelectedOrder == null)
         {
@@ -112,24 +112,38 @@ public partial class DispatchOrderDialog : Window
 
         try
         {
-            // 使用同步等待避免DialogResult过早丢失Context
-            var ok = _vm.ConfirmDispatchAsync().GetAwaiter().GetResult();
+            IsEnabled = false;
+
+            var ok = await _vm.ConfirmDispatchAsync();
             if (ok)
             {
-                MessageBox.Show(this, $"单据已成功下发到 [{_vm.SelectedCrane.Name}]",
+                MessageBox.Show(this, $"单据已成功下发到 [{_vm.SelectedCrane.Name}]，装车已启动",
                     "下发成功", MessageBoxButton.OK, MessageBoxImage.Information);
                 DialogResult = true;
                 Close();
             }
             else
             {
-                MessageBox.Show(this, "下发失败，请查看日志详情。", "失败",
+                var crane = _vm.SelectedCrane;
+                var hint = crane.Status switch
+                {
+                    CraneStatus.Loading => "鹤位正在装车中，无法重复下发",
+                    CraneStatus.Paused => "鹤位已暂停，请恢复或完成后再下发",
+                    CraneStatus.EmergencyStop => "鹤位处于急停状态，请复位后再下发",
+                    CraneStatus.Offline => "鹤位离线，请检查 PLC 连接",
+                    _ => "可能原因：安全联锁未满足或鹤位状态不允许。请查看日志详情。"
+                };
+                MessageBox.Show(this, $"下发失败：{hint}", "失败",
                     MessageBoxButton.OK, MessageBoxImage.Warning);
             }
         }
         catch (Exception ex)
         {
             MessageBox.Show(this, "下发异常：" + ex.Message, "错误", MessageBoxButton.OK, MessageBoxImage.Error);
+        }
+        finally
+        {
+            IsEnabled = true;
         }
     }
 

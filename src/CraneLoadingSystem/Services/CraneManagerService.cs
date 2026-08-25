@@ -94,7 +94,8 @@ public class CraneManagerService : ICraneManagerService
                 if (_plc is PlcControlService realPlc)
                 {
                     var s = realPlc.GetCraneStatus(crane.Id);
-                    if (s != CraneStatus.Offline || _config.AppSettings.EnableSimulation)
+                    // 仅在 PLC 报告非 Offline 状态时更新（Offline = 初始/断连，不应覆盖业务状态）
+                    if (s != CraneStatus.Offline)
                         crane.Status = s;
 
                     // 自动同步激活的单据

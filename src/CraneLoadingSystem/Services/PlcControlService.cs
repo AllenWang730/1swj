@@ -35,20 +35,20 @@ public class PlcControlService : IPlcControlService
                 _simulationData[crane.Id] = new CraneRealtimeData();
                 _simulationIo[crane.Id] = new CraneIoStatus
                 {
-                    IsCranePositioned = false,
-                    IsClampConnected = false,
-                    IsTankCoverOpen = false,
-                    // 启动前8项联锁默认未满足（待司机操作后置true）
-                    DiHumanStatic = false,
-                    DiStaticClamp = false,
-                    DiArmConnected = false,
+                    IsCranePositioned = true,
+                    IsClampConnected = true,
+                    IsTankCoverOpen = true,
+                    // 仿真模式：8项联锁全部预设为正常（模拟司机已完成全部准备工作）
+                    DiHumanStatic = true,
+                    DiStaticClamp = true,
+                    DiArmConnected = true,
                     DiArmHomed = true,         // 归位：未装车时true=已归位
-                    DiVehicleBlock = false,
-                    DiKeyInterlock = false,
+                    DiVehicleBlock = true,
+                    DiKeyInterlock = true,
                     DiOverflowAlarm = false,   // 正常
                     DiEmergencyStop = false    // 正常
                 };
-                _craneStatus[crane.Id] = CraneStatus.Offline;
+                _craneStatus[crane.Id] = CraneStatus.Idle;
                 _activeOrders[crane.Id] = null;
             }
 

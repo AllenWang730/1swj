@@ -35,6 +35,12 @@ public class AlarmManagerService : IAlarmManagerService
 {
     private readonly object _lock = new();
     private long _nextId = 1;
+    private readonly IDatabaseService? _db;
+
+    public AlarmManagerService(IDatabaseService? db = null)
+    {
+        _db = db;
+    }
 
     public ObservableCollection<AlarmRecord> Alarms { get; } = new();
 
@@ -66,7 +72,9 @@ public class AlarmManagerService : IAlarmManagerService
             Alarms.Insert(0, rec); // 最新置顶
         }
 
-        // 持久化（SQLite 待接入，此处先记日志）
+        // 持久化到 SQLite 数据库
+        _db?.InsertAlarm(rec);
+
         Log.Write(level switch
         {
             AlarmLevel.Critical => Serilog.Events.LogEventLevel.Fatal,

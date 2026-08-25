@@ -58,6 +58,11 @@ publish/
 appsettings.*.json
 !appsettings.json
 
+# =========== SQLite 数据库 ===========
+*.db
+*.db-shm
+*.db-wal
+
 # =========== 证书/密钥 ===========
 *.pfx
 *.key
