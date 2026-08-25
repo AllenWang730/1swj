@@ -3,6 +3,7 @@ using System.IO;
 using System.Runtime.InteropServices;
 using System.Threading;
 using System.Windows;
+using Microsoft.Extensions.Options;
 using System.Windows.Threading;
 using CraneLoadingSystem.Models;
 using CraneLoadingSystem.Services;
@@ -112,8 +113,8 @@ public partial class App : Application
     /// </summary>
     private static void ConfigureServices(IServiceCollection services, IConfiguration configuration)
     {
-        // 配置选项
-        services.Configure<AppConfig>(configuration);
+        // 配置选项 - 使用已绑定默认值的 AppConfig 实例（确保 CranePositions 等默认值传递到所有服务）
+        services.AddSingleton<IOptions<AppConfig>>(Options.Create(AppConfig));
 
         // 配置HttpClient
         services.AddHttpClient<ISapService, SapService>();
