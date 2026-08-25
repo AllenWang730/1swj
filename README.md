@@ -1,6 +1,6 @@
 # CraneLoadingSystem · 流体装卸鹤位上位机监控系统
 
-基于 **.NET 8 WPF** 的工业流体装卸鹤位上位机系统。支持**多鹤位同屏显示**（每鹤位独立卡片）、**下位机(PLC)远程启动/停止/急停**、对接 **SAP / ERP** 获取单据并**下发工作量**。
+基于 **.NET 10 WPF** 的工业流体装卸鹤位上位机系统。支持**多鹤位同屏显示**（每鹤位独立卡片）、**下位机(PLC)远程启动/停止/急停**、对接 **SAP / ERP** 获取单据并**下发工作量**。
 
 ---
 
@@ -25,7 +25,7 @@
 ```
 CraneLoadingSystem.sln
 └── src/CraneLoadingSystem/
-    ├── CraneLoadingSystem.csproj    # net8.0-windows, WPF
+    ├── CraneLoadingSystem.csproj    # net10.0-windows, WPF
     ├── appsettings.json             # 系统/PLC/SAP/ERP/鹤位配置
     ├── App.xaml / App.xaml.cs       # 启动入口 + DI + 日志 + 单实例 + 全局异常
     ├── AssemblyInfo.cs
@@ -62,7 +62,7 @@ CraneLoadingSystem.sln
 
 ## 🚀 本地构建运行
 
-> 环境要求：Windows 10/11，[.NET 8 SDK](https://dotnet.microsoft.com/zh-cn/download/dotnet/8.0) 或 Visual Studio 2022 17.8+
+> 环境要求：Windows 10/11，[.NET 10 SDK](https://dotnet.microsoft.com/zh-cn/download/dotnet/10.0) 或 Visual Studio 2022 17.12+
 
 ### 方式一：命令行
 
@@ -179,9 +179,9 @@ jobs:
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Setup .NET 8
+      - name: Setup .NET 10
         uses: actions/setup-dotnet@v4
-        with: { dotnet-version: '8.0.x' }
+        with: { dotnet-version: '10.0.x' }
       - run: dotnet restore CraneLoadingSystem.sln
       - run: dotnet build CraneLoadingSystem.sln -c Release --no-restore
 ```
