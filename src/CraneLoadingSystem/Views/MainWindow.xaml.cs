@@ -185,10 +185,25 @@ public partial class MainWindow : Window
             card.Crane = crane;
             card.Tag = crane.Id;
 
-            // 卡片大小
-            card.Width = 480;
-            card.MinWidth = 420;
-            card.MinHeight = 520;
+            // 卡片大小（按当前布局模式 _layoutMode 切换）
+            switch (_layoutMode)
+            {
+                case 1: // 横向平铺：3列
+                    card.Width = 360;
+                    card.MinWidth = 320;
+                    card.MinHeight = 480;
+                    break;
+                case 2: // 紧凑模式：4列
+                    card.Width = 280;
+                    card.MinWidth = 240;
+                    card.MinHeight = 420;
+                    break;
+                default: // 流式布局：2列
+                    card.Width = 480;
+                    card.MinWidth = 420;
+                    card.MinHeight = 520;
+                    break;
+            }
             card.Margin = new Thickness(4);
             CraneWrapPanel.Children.Add(card);
 

@@ -58,10 +58,6 @@ public class BoolToVisibilityConverter : IValueConverter
 /// </summary>
 public partial class CranePositionCard : System.Windows.Controls.UserControl, IDisposable
 {
-    // 声明XAML中使用的Converter资源（XAML中通过键访问）
-    private static readonly SecondsToMinutesConverter _secToMinConv = new();
-    private static readonly BoolToVisibilityConverter _boolToVisConv = new();
-
     public static readonly DependencyProperty CraneProperty =
         DependencyProperty.Register(
             nameof(Crane),
@@ -121,10 +117,6 @@ public partial class CranePositionCard : System.Windows.Controls.UserControl, ID
     /// <summary>默认构造函数（XAML设计器需要）</summary>
     public CranePositionCard()
     {
-        // 注册资源中的Converter
-        Resources["SecToMinConv"] = _secToMinConv;
-        Resources["BoolToVisConv"] = _boolToVisConv;
-
         InitializeComponent();
 
         StartCommand = new RelayCommand(async () => await ExecuteCraneAction(nameof(StartCommand)));
