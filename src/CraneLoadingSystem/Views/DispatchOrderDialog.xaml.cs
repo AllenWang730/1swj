@@ -119,7 +119,13 @@ public partial class DispatchOrderDialog : Window
             var ok = await _vm.ConfirmDispatchAsync();
             if (ok)
             {
-                MessageBox.Show(this, $"单据已成功下发到 [{_vm.SelectedCrane.Name}]，装车已启动",
+                MessageBox.Show(this,
+                    $"单据已成功下发到 [{_vm.SelectedCrane.Name}]。\n\n" +
+                    "鹤位已进入【就绪 Ready】状态。\n" +
+                    "请现场操作员到鹤位卡片点【▶ 启动】按钮，" +
+                    "在弹出的安全确认对话框中确认车辆停稳、鹤管连接、静电夹接地、" +
+                    "阻车器升起、人员撤离等事项后，系统将自动校验8项联锁并通过后启动装料。\n\n" +
+                    "⚠ 未完成现场确认前，装料不会自动启动。",
                     "下发成功", MessageBoxButton.OK, MessageBoxImage.Information);
                 DialogResult = true;
                 Close();

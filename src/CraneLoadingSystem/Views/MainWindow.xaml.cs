@@ -123,8 +123,21 @@ public partial class MainWindow : Window
     {
         await Dispatcher.InvokeAsync(async () =>
         {
-            Log.Information("[Main] 捕获鹤位完成事件 {CraneId}", e.CraneId);
-            await _vm.OrderManager.NotifyOrderCompletedAsync(e.CraneId, e.ActualWeight, e.StartTime, e.EndTime);
+            if (e.IsAborted)
+            {
+                // ★ 异常中断（急停/联锁破坏）：不调用 NotifyOrderCompletedAsync（避免误标 Completed 回传 SAP/ERP），
+                // 仅记录日志与操作日志。订单保持 InProgress 状态，由现场后续处理：
+                //   - 排查故障 → 复位鹤位 → 重新启动（继续装料）
+                //   - 或由人工调用 StopCommand / CancelDispatchAsync 终止单据
+                Log.Warning("[Main] 捕获鹤位 {CraneId} 异常中断事件：{Reason}，实际装载 {Weight:F2}kg（订单保持 InProgress，待人工处理）",
+                    e.CraneId, e.AbortReason ?? "(未知)", e.ActualWeight);
+            }
+            else
+            {
+                Log.Information("[Main] 捕获鹤位 {CraneId} 正常完成事件，实际装载 {Weight:F2}kg",
+                    e.CraneId, e.ActualWeight);
+                await _vm.OrderManager.NotifyOrderCompletedAsync(e.CraneId, e.ActualWeight, e.StartTime, e.EndTime);
+            }
         });
     }
 

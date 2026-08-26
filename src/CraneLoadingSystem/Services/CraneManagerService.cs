@@ -157,6 +157,7 @@ public class CraneManagerService : ICraneManagerService
         {
             Log.Warning("[CraneMgr] 启动被拒绝：鹤位 {Id} 安全联锁未通过 - {Desc}",
                 craneId, check.MissingDescription);
+            crane.AlarmMessage = $"启动被拒绝：{check.MissingDescription}";  // ★ 回写卡片报警文本
             await _alarm.RaiseAsync(
                 craneId, crane.Name,
                 AlarmLevel.Critical,
@@ -165,27 +166,69 @@ public class CraneManagerService : ICraneManagerService
             return false;
         }
 
+        crane.AlarmMessage = null;  // 启动校验通过，清除卡片报警
         return await _plc.RemoteStartAsync(craneId, crane.CurrentOrder);
     }
 
     public async Task<bool> RemoteStopAsync(string craneId)
     {
-        return await _plc.RemoteStopAsync(craneId);
+        var crane = GetCrane(craneId);
+        var ok = await _plc.RemoteStopAsync(craneId);
+        if (ok && crane != null)
+        {
+            crane.Status = CraneStatus.Completed;  // ★ 同步 UI 状态（依赖 RefreshTimer 同步会延迟）
+        }
+        return ok;
     }
 
     public async Task<bool> RemotePauseAsync(string craneId)
     {
-        return await _plc.RemotePauseAsync(craneId);
+        var crane = GetCrane(craneId);
+        var ok = await _plc.RemotePauseAsync(craneId);
+        // ★ 同步 UI 状态：暂停后立即反映到卡片，否则用户感知"按钮没反应"
+        if (ok && crane != null && crane.Status == CraneStatus.Loading)
+            crane.Status = CraneStatus.Paused;
+        return ok;
     }
 
     public async Task<bool> RemoteResumeAsync(string craneId)
     {
+        var crane = GetCrane(craneId);
+        if (crane == null) return false;
+
+        // ★ Bug fix: 恢复装料等同启动，必须重新全检8项安全联锁
+        // （暂停期间现场可能拆卸了静电夹/阻车器，恢复时未重新校验是安全漏洞）
+        var check = await _safety.CheckStartupAsync(crane);
+        if (!check.AllSatisfied)
+        {
+            Log.Warning("[CraneMgr] 恢复装料被拒绝：鹤位 {Id} 联锁未通过 - {Desc}",
+                craneId, check.MissingDescription);
+            crane.AlarmMessage = $"恢复装料被拒：{check.MissingDescription}";
+            await _alarm.RaiseAsync(
+                craneId, crane.Name,
+                AlarmLevel.Critical,
+                "恢复装料被拒绝：安全联锁未满足",
+                check.MissingDescription);
+            return false;
+        }
+
+        crane.AlarmMessage = null;
         return await _plc.RemoteResumeAsync(craneId);
     }
 
     public async Task<bool> EmergencyStopAsync(string craneId)
     {
-        return await _plc.EmergencyStopAsync(craneId);
+        var crane = GetCrane(craneId);
+        var ok = await _plc.EmergencyStopAsync(craneId);
+        // ★ Bug fix: 必须立即同步 UI 状态。否则 crane.Status 仍是 Loading，
+        // 用户感知"急停按钮没生效"；复位按钮的 IsEnabled 触发器也不匹配 EmergencyStop 而无法点击
+        if (ok && crane != null)
+        {
+            crane.Status = CraneStatus.EmergencyStop;
+            crane.IsEmergencyStop = true;
+            crane.AlarmMessage = "🚨 紧急停止已触发，请现场复位后重新全检8项联锁";
+        }
+        return ok;
     }
 
     public async Task<bool> EmergencyResetAsync(string craneId)
@@ -193,7 +236,7 @@ public class CraneManagerService : ICraneManagerService
         var crane = GetCrane(craneId);
         if (crane == null) return false;
 
-        // 1. 先复位 PLC 急停
+        // 1. 先复位 PLC 急停（PLC 侧清 DiEmergencyStop 信号）
         var ok = await _plc.EmergencyResetAsync(craneId);
         if (!ok) return false;
 
@@ -203,6 +246,7 @@ public class CraneManagerService : ICraneManagerService
         {
             Log.Warning("[CraneMgr] 鹤位 {Id} 急停复位失败：8项联锁未全通过 - {Desc}",
                 craneId, check.MissingDescription);
+            crane.AlarmMessage = $"急停复位失败：{check.MissingDescription}";
             await _alarm.RaiseAsync(
                 craneId, crane.Name,
                 AlarmLevel.Warning,
@@ -212,6 +256,7 @@ public class CraneManagerService : ICraneManagerService
         }
 
         crane.IsEmergencyStop = false;
+        crane.AlarmMessage = null;  // ★ 复位成功，清卡片报警文本
         crane.Status = CraneStatus.Idle;
         Log.Information("[CraneMgr] 鹤位 {Id} 急停复位成功（8项联锁全通过）", craneId);
         return true;
@@ -245,6 +290,7 @@ public class CraneManagerService : ICraneManagerService
             await _plc.EmergencyStopAsync(e.CraneId);
             crane.Status = CraneStatus.EmergencyStop;
             crane.IsEmergencyStop = true;
+            crane.AlarmMessage = $"🚨 联锁破坏：{e.ItemName} - {e.Reason}，已自动急停";
 
             // 2. 记录 Critical 报警
             await _alarm.RaiseAsync(
@@ -253,7 +299,8 @@ public class CraneManagerService : ICraneManagerService
                 $"安全联锁破坏：{e.ItemName}",
                 $"原因: {e.Reason}；鹤位已自动急停，需现场复位后重新全检8项联锁");
 
-            // 3. 异常事件回传 SAP/ERP（通过订单管理服务事件）
+            // 3. 异常中断事件回传（IsAborted=true 标记，订阅方可区分正常完成与急停中断，
+            //    避免把未达定量的订单误标记为 Completed 回传 SAP/ERP）
             if (crane.CurrentOrder != null)
             {
                 OnCraneCompleted?.Invoke(this, new CraneCompletedArgs
@@ -261,7 +308,9 @@ public class CraneManagerService : ICraneManagerService
                     CraneId = e.CraneId,
                     ActualWeight = crane.RealtimeData.LoadedWeight,
                     StartTime = crane.CurrentOrder.DispatchTime ?? DateTime.Now,
-                    EndTime = DateTime.Now
+                    EndTime = DateTime.Now,
+                    IsAborted = true,
+                    AbortReason = $"{e.ItemName}: {e.Reason}"
                 });
             }
         }
@@ -278,6 +327,12 @@ public class CraneCompletedArgs : EventArgs
     public double ActualWeight { get; set; }
     public DateTime StartTime { get; set; }
     public DateTime EndTime { get; set; }
+
+    /// <summary>是否为异常中断（急停/联锁破坏），false=正常完成</summary>
+    public bool IsAborted { get; set; }
+
+    /// <summary>异常原因（仅当 IsAborted=true 时有值）</summary>
+    public string? AbortReason { get; set; }
 }
 
 /// <summary>
@@ -285,10 +340,25 @@ public class CraneCompletedArgs : EventArgs
 /// </summary>
 public static class CraneExtensions
 {
+    /// <summary>
+    /// 复位鹤位状态（仅由 UI 主动触发，不影响 PLC 侧急停 DI 信号——后者由 EmergencyResetAsync 单独处理）
+    /// </summary>
     public static void ResetCrane(this CranePosition crane)
     {
         crane.CurrentOrder = null;
         crane.Status = CraneStatus.Idle;
         crane.RealtimeData = new CraneRealtimeData();
+        // ★ Bug fix: 之前只重置 3 项，导致 IsEmergencyStop/AlarmMessage 等残留，
+        // 下次 RemoteStartAsync 时 PLC 侧仍处于急停未复位状态
+        crane.IsEmergencyStop = false;
+        crane.AlarmMessage = null;
+        crane.MissingInterlockNames = null;
+        crane.AllInterlocksSatisfied = true;
+        // 重置联锁项显示状态
+        foreach (var item in crane.SafetyInterlocks)
+        {
+            item.IsAlarming = false;
+            item.IsFlashing = false;
+        }
     }
 }

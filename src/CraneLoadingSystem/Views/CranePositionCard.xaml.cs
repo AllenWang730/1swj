@@ -152,18 +152,47 @@ public partial class CranePositionCard : System.Windows.Controls.UserControl, ID
             {
                 case nameof(StartCommand):
                     // 若鹤位未分配单据，则提示需先分配
-                    if (Crane.CurrentOrder == null || Crane.Status == CraneStatus.Idle)
+                    if (Crane.CurrentOrder == null)
                     {
                         MessageBox.Show($"鹤位 {Crane.Name} 尚未分配单据，请先在单据管理中下发单据到鹤位。",
                             "提示", MessageBoxButton.OK, MessageBoxImage.Warning);
                         return;
                     }
+                    if (Crane.Status != CraneStatus.Ready && Crane.Status != CraneStatus.Idle)
+                    {
+                        MessageBox.Show($"鹤位 {Crane.Name} 当前状态为 {Crane.Status}，无法启动。仅 Ready/Idle 状态可启动。",
+                            "提示", MessageBoxButton.OK, MessageBoxImage.Warning);
+                        return;
+                    }
+                    // ★ Bug fix: 装车前必须由现场人员二次确认（车辆停稳、鹤管连接、静电夹接地、
+                    // 阻车器升起、人员撤离至安全区）——之前下发即自动启动是重大安全漏洞
+                    var startConfirm = MessageBox.Show(
+                        $"【装车前安全确认】鹤位 {Crane.Name}\n\n" +
+                        "请现场操作员确认以下事项已完成：\n" +
+                        "  ✓ 槽车停稳并刹车\n" +
+                        "  ✓ 鹤管已连接并密封\n" +
+                        "  ✓ 静电夹已接地\n" +
+                        "  ✓ 阻车器已升起\n" +
+                        "  ✓ 现场人员已撤离至安全区\n" +
+                        "  ✓ 8项安全联锁全部满足\n\n" +
+                        "确认后系统将再次自动校验联锁，通过后立即启动装料。\n\n" +
+                        "是否确认启动？",
+                        "装车前人员确认", MessageBoxButton.YesNo, MessageBoxImage.Question,
+                        MessageBoxResult.No);
+                    if (startConfirm != MessageBoxResult.Yes) return;
+
                     ok = await _craneManager.RemoteStartAsync(craneId);
+                    if (!ok)
+                    {
+                        // RemoteStartAsync 内部已校验联锁并报警，此处仅提示用户
+                        MessageBox.Show($"启动失败：{Crane.AlarmMessage ?? "请查看报警信息与日志"}",
+                            "启动失败", MessageBoxButton.OK, MessageBoxImage.Warning);
+                    }
                     break;
 
                 case nameof(StopCommand):
-                    var result = MessageBox.Show($"确认停止鹤位 {Crane.Name} 的装料作业？",
-                        "确认", MessageBoxButton.YesNo, MessageBoxImage.Question);
+                    var result = MessageBox.Show($"确认停止鹤位 {Crane.Name} 的装料作业？\n（停止后将以当前装载量作为实际完成量回传 SAP/ERP）",
+                        "确认停止", MessageBoxButton.YesNo, MessageBoxImage.Question);
                     if (result != MessageBoxResult.Yes) return;
                     ok = await _craneManager.RemoteStopAsync(craneId);
                     // 完成后通知订单管理
@@ -179,25 +208,46 @@ public partial class CranePositionCard : System.Windows.Controls.UserControl, ID
 
                 case nameof(PauseCommand):
                     if (Crane.Status == CraneStatus.Paused)
+                    {
+                        // 恢复前需人员再次确认（暂停期间现场可能变更）
+                        var resumeConfirm = MessageBox.Show(
+                            $"确认恢复鹤位 {Crane.Name} 的装料作业？\n系统将重新校验8项安全联锁。",
+                            "恢复确认", MessageBoxButton.YesNo, MessageBoxImage.Question);
+                        if (resumeConfirm != MessageBoxResult.Yes) return;
                         ok = await _craneManager.RemoteResumeAsync(craneId);
+                    }
                     else
+                    {
                         ok = await _craneManager.RemotePauseAsync(craneId);
+                    }
                     break;
 
                 case nameof(ResetCommand):
-                    var res = MessageBox.Show($"确认复位鹤位 {Crane.Name}，清除当前状态？",
+                    var res = MessageBox.Show(
+                        $"确认复位鹤位 {Crane.Name}？\n\n" +
+                        "复位前请确保：\n" +
+                        "  ✓ 现场急停按钮已物理释放\n" +
+                        "  ✓ 故障/报警原因已排查\n" +
+                        "  ✓ 8项安全联锁现场已确认\n\n" +
+                        "复位将重新全检8项联锁，通过后状态恢复为待机。",
                         "确认复位", MessageBoxButton.YesNo, MessageBoxImage.Question);
                     if (res != MessageBoxResult.Yes) return;
                     if (Crane.Status == CraneStatus.Completed && Crane.CurrentOrder != null)
                     {
-                        // 完成后走一次通知
+                        // 完成后走一次通知（保险，正常 RefreshTimer 已触发）
                         await _orderMgr!.NotifyOrderCompletedAsync(craneId,
                             Crane.RealtimeData.LoadedWeight,
                             Crane.CurrentOrder.DispatchTime ?? DateTime.Now,
                             DateTime.Now);
                     }
                     ok = await _craneManager.EmergencyResetAsync(craneId);
-                    Crane.ResetCrane();
+                    // ★ Bug fix: 之前无条件执行 ResetCrane()，即使复位失败也会清状态，
+                    // 导致 IsEmergencyStop 残留 + UI 显示 Idle 但 PLC 仍急停
+                    if (ok)
+                        Crane.ResetCrane();
+                    else
+                        MessageBox.Show($"复位失败：{Crane.AlarmMessage ?? "请现场确认急停按钮已释放、联锁已恢复"}",
+                            "复位失败", MessageBoxButton.OK, MessageBoxImage.Warning);
                     break;
 
                 case nameof(EmergencyStopCommand):
@@ -205,6 +255,7 @@ public partial class CranePositionCard : System.Windows.Controls.UserControl, ID
                         "紧急停止确认", MessageBoxButton.YesNo, MessageBoxImage.Warning);
                     if (r != MessageBoxResult.Yes) return;
                     ok = await _craneManager.EmergencyStopAsync(craneId);
+                    // ★ CraneManagerService.EmergencyStopAsync 已同步更新 crane.Status 和 IsEmergencyStop
                     break;
 
                 default:

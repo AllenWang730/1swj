@@ -349,6 +349,27 @@
                        Text="{Binding MissingInterlockNames, FallbackValue=''}"
                        Visibility="{Binding AllInterlocksSatisfied, Converter={StaticResource BoolToVisConv}, ConverterParameter=Invert, FallbackValue=Collapsed}"/>
 
+            <!-- ★ 报警信息文本（急停/联锁破坏/启动拒绝等） -->
+            <Border Grid.Row="7" Margin="0,18,0,4" CornerRadius="4" Padding="6,3"
+                     Background="#FFFEF2F2" BorderBrush="#FFFECACA" BorderThickness="1">
+                <Border.Style>
+                    <Style TargetType="Border">
+                        <Setter Property="Visibility" Value="Visible"/>
+                        <Style.Triggers>
+                            <DataTrigger Binding="{Binding AlarmMessage}" Value="{x:Null}">
+                                <Setter Property="Visibility" Value="Collapsed"/>
+                            </DataTrigger>
+                            <DataTrigger Binding="{Binding AlarmMessage}" Value="">
+                                <Setter Property="Visibility" Value="Collapsed"/>
+                            </DataTrigger>
+                        </Style.Triggers>
+                    </Style>
+                </Border.Style>
+                <TextBlock FontSize="11" FontWeight="SemiBold" TextWrapping="Wrap"
+                           Foreground="#FFDC2626"
+                           Text="{Binding AlarmMessage, FallbackValue=''}"/>
+            </Border>
+
             <!-- 控制按钮 -->
             <GroupBox Grid.Row="8" Header="控制操作" FontSize="11" Padding="6,4" BorderBrush="#FFDDDDDD">
                 <Grid>
@@ -438,6 +459,10 @@
                                         <Setter Property="IsEnabled" Value="True"/>
                                     </DataTrigger>
                                     <DataTrigger Binding="{Binding Status}" Value="Fault">
+                                        <Setter Property="IsEnabled" Value="True"/>
+                                    </DataTrigger>
+                                    <!-- ★ Bug fix: 急停后必须能点击复位，否则无法恢复 -->
+                                    <DataTrigger Binding="{Binding Status}" Value="EmergencyStop">
                                         <Setter Property="IsEnabled" Value="True"/>
                                     </DataTrigger>
                                 </Style.Triggers>

@@ -113,36 +113,25 @@ public partial class OrderManagementService : ObservableObject, IOrderManagement
             crane.RealtimeData.ElapsedSeconds = 0;
             crane.RealtimeData.RemainingWeight = order.PlannedWeight;
 
-            // 4. 启动下位机装料
-            bool startOk = await _craneManager.RemoteStartAsync(craneId);
-            if (startOk)
+            // 4. ★ Bug fix: 不再自动启动装料。仅完成单据下发，鹤位保持 Ready 状态。
+            //    现场操作员需在鹤位卡片点【▶ 启动】按钮，弹窗确认车辆/鹤管/静电夹/阻车器/
+            //    人员撤离等现场条件已就绪后，由 CranePositionCard.StartCommand 调用
+            //    CraneManagerService.RemoteStartAsync（内部会强制校验8项安全联锁）。
+            //    之前在此处直接 RemoteStartAsync 是重大安全漏洞——车辆未到位即装料可能溢料伤人。
+            lock (_lockObj) ActiveOrders.Add(order);
+            _db?.InsertOrderHistory(order);
+            _db?.InsertOperationLog(new OperationLog
             {
-                order.Status = OrderStatus.InProgress;
-                lock (_lockObj) ActiveOrders.Add(order);
-                _db?.InsertOrderHistory(order);
-                _db?.InsertOperationLog(new OperationLog
-                {
-                    Time = DateTime.Now,
-                    Operator = "System",
-                    Action = "DispatchOrder",
-                    CraneId = craneId,
-                    OrderNo = orderNo,
-                    Detail = $"单据下发到鹤位 {crane.Name}，产品 {order.ProductName}，计划 {order.PlannedWeight:F0}kg"
-                });
-                Log.Information("[OrderMgr] 单据 {OrderNo} 成功下发到鹤位 {CraneId} 并启动装料", orderNo, craneId);
-                return true;
-            }
-            else
-            {
-                Log.Warning("[OrderMgr] 下位机启动失败，单据 {OrderNo} 回滚到待下发", orderNo);
-                order.Status = OrderStatus.Created;
-                order.AssignedCraneId = null;
-                order.DispatchTime = null;
-                crane.CurrentOrder = null;
-                crane.Status = CraneStatus.Idle;
-                lock (_lockObj) PendingOrders.Add(order);
-                return false;
-            }
+                Time = DateTime.Now,
+                Operator = "System",
+                Action = "DispatchOrder",
+                CraneId = craneId,
+                OrderNo = orderNo,
+                Detail = $"单据下发到鹤位 {crane.Name}，产品 {order.ProductName}，计划 {order.PlannedWeight:F0}kg；等待现场确认后启动"
+            });
+            Log.Information("[OrderMgr] 单据 {OrderNo} 已下发到鹤位 {CraneId}，状态=Ready，等待现场人员确认后启动装料",
+                orderNo, craneId);
+            return true;
         }
         catch (Exception ex)
         {

@@ -219,6 +219,17 @@ public class PlcControlService : IPlcControlService
             Log.Information("[PlcService] 紧急停止复位 {CraneId}", craneId);
             if (_craneStatus[craneId] == CraneStatus.EmergencyStop)
                 _craneStatus[craneId] = CraneStatus.Idle;
+            // ★ 必须同步清除急停 DI 信号，否则后续 CheckStartupAsync 会因 EmergencyStop 联锁仍触发而拒绝复位
+            // （现场急停按钮物理释放后由硬件回写 DI=false，仿真模式此处直接清零）
+            if (_simulationIo.TryGetValue(craneId, out var io))
+            {
+                io.DiEmergencyStop = false;
+                io.DiOverflowAlarm = false;  // 同步清溢油报警（若曾触发）
+                // 复位后阀门/泵保持关闭，等待 RemoteStartAsync 重新打开
+                io.IsPumpRunning = false;
+                io.IsInletValveOpen = false;
+                io.IsOutletValveOpen = false;
+            }
             return Task.FromResult(true);
         }
         catch (Exception ex)
