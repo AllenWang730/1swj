@@ -14,19 +14,27 @@ using Serilog;
 namespace CraneLoadingSystem.Views;
 
 /// <summary>
-/// 主窗口ViewModel
+/// 主窗口ViewModel - 持有所有业务服务实例，供 XAML 绑定与子视图获取
 /// </summary>
 public partial class MainWindowViewModel : ObservableObject
 {
+    /// <summary>应用标题（显示在窗口标题栏与单实例检测）</summary>
     [ObservableProperty] private string _appTitle = "流体装卸鹤位上位机监控系统 v1.0";
+    /// <summary>底部状态栏文本</summary>
     [ObservableProperty] private string _statusBarText = "系统启动中...";
 
+    /// <summary>鹤位管理器</summary>
     public ICraneManagerService CraneManager { get; }
+    /// <summary>订单管理器</summary>
     public IOrderManagementService OrderManager { get; }
+    /// <summary>SAP 接口服务</summary>
     public ISapService SapService { get; }
+    /// <summary>ERP 接口服务</summary>
     public IErpService ErpService { get; }
+    /// <summary>DI 容器（用于子视图解析依赖）</summary>
     public IServiceProvider ServiceProvider { get; }
 
+    /// <summary>构造函数，依赖注入所有业务服务</summary>
     public MainWindowViewModel(ICraneManagerService craneManager, IOrderManagementService orderManager,
         ISapService sapService, IErpService erpService, IServiceProvider serviceProvider)
     {
@@ -44,11 +52,12 @@ public partial class MainWindowViewModel : ObservableObject
 public partial class MainWindow : Window
 {
     private readonly MainWindowViewModel _vm;
-    private readonly DispatcherTimer _clockTimer;
-    private readonly DispatcherTimer _statusTimer;
+    private readonly DispatcherTimer _clockTimer;       // 1秒一次：刷新时钟与运行时长
+    private readonly DispatcherTimer _statusTimer;      // 3秒一次：刷新右下角状态统计
     private readonly DateTime _startTime = DateTime.Now;
-    private int _layoutMode = 0; // 0:Wrap 1:2列 2:1列
+    private int _layoutMode = 0; // 0:流式自适应 1:横向平铺3列 2:紧凑4列
 
+    /// <summary>构造函数，注入 ViewModel 并初始化两个 DispatcherTimer</summary>
     public MainWindow(MainWindowViewModel vm)
     {
         InitializeComponent();
@@ -68,6 +77,7 @@ public partial class MainWindow : Window
         _statusTimer.Tick += StatusTimer_Tick;
     }
 
+    /// <summary>窗口加载完成事件：执行系统启动序列（PLC连接 → SAP/ERP检测 → 单据同步 → 鹤位卡片构建 → 状态轮询）</summary>
     private async void Window_Loaded(object sender, RoutedEventArgs e)
     {
         try
@@ -119,6 +129,10 @@ public partial class MainWindow : Window
         }
     }
 
+    /// <summary>
+    /// 鹤位完成事件回调：根据 IsAborted 分流到 NotifyOrderCompletedAsync 或 NotifyOrderAbortedAsync。
+    /// 用 Dispatcher.InvokeAsync 切回 UI 线程，避免后台事件线程访问 UI 控件。
+    /// </summary>
     private async void CraneMgr_OnCraneCompleted(object? sender, CraneCompletedArgs e)
     {
         await Dispatcher.InvokeAsync(async () =>
@@ -143,6 +157,7 @@ public partial class MainWindow : Window
         });
     }
 
+    /// <summary>更新 SAP/ERP 连接状态灯（全绿/部分橙/全红）</summary>
     private void UpdateSapStatus(bool sapOk, bool erpOk)
     {
         var color = sapOk && erpOk ? Colors.LimeGreen : (sapOk || erpOk ? Colors.Orange : Colors.Red);
@@ -228,6 +243,7 @@ public partial class MainWindow : Window
         Log.Information("[Main] BuildCraneCards 完成，共添加 {Count} 张卡片", CraneWrapPanel.Children.Count);
     }
 
+    /// <summary>Header 切换时高亮对应鹤位卡片（蓝色边框 + 滚动到视图）</summary>
     private void HighlightCraneCard(string craneId)
     {
         foreach (var child in CraneWrapPanel.Children.OfType<CranePositionCard>())
@@ -245,6 +261,7 @@ public partial class MainWindow : Window
         }
     }
 
+    /// <summary>根据当前 Tab（待下发/进行中/已完成）切换 OrdersGrid 数据源并启用对应菜单</summary>
     private void UpdateOrdersGridBinding(int tabIndex)
     {
         ObservableCollection<LoadingOrder> src = tabIndex switch
@@ -259,11 +276,13 @@ public partial class MainWindow : Window
         CancelMenu.IsEnabled = tabIndex <= 1;
     }
 
+    /// <summary>Tab 切换事件：刷新 OrdersGrid 绑定</summary>
     private void OrderTabs_SelectionChanged(object sender, SelectionChangedEventArgs e)
     {
         UpdateOrdersGridBinding(OrderTabs.SelectedIndex);
     }
 
+    /// <summary>【刷新单据】按钮：从 SAP/ERP 重新拉单并测试连通性</summary>
     private async void RefreshOrders_Click(object sender, RoutedEventArgs e)
     {
         try
@@ -286,6 +305,7 @@ public partial class MainWindow : Window
         }
     }
 
+    /// <summary>【手工创建单据】按钮：打开 ManualOrderDialog 应急补单</summary>
     private void CreateManualOrder_Click(object sender, RoutedEventArgs e)
     {
         try
@@ -306,6 +326,7 @@ public partial class MainWindow : Window
         }
     }
 
+    /// <summary>【切换布局】按钮：在流式/横向平铺/紧凑三种模式间循环</summary>
     private void ToggleLayout_Click(object sender, RoutedEventArgs e)
     {
         _layoutMode = (_layoutMode + 1) % 3;
@@ -320,6 +341,7 @@ public partial class MainWindow : Window
         _vm.StatusBarText = "已切换到 " + modeName;
     }
 
+    /// <summary>【系统信息】按钮：弹窗显示当前系统状态摘要</summary>
     private void OpenSettings_Click(object sender, RoutedEventArgs e)
     {
         var info = $"系统: {_vm.AppTitle}\n\n" +
@@ -331,6 +353,7 @@ public partial class MainWindow : Window
         MessageBox.Show(this, info, "系统信息", MessageBoxButton.OK, MessageBoxImage.Information);
     }
 
+    /// <summary>【全局紧急停止】按钮：并行急停所有鹤位（Task.WhenAll）</summary>
     private async void GlobalEmergency_Click(object sender, RoutedEventArgs e)
     {
         var r = MessageBox.Show(this, "⚠ 确认执行【全局紧急停止】？\n这将立即停止所有鹤位的所有装料作业！",
@@ -355,12 +378,14 @@ public partial class MainWindow : Window
         }
     }
 
+    /// <summary>右键菜单【下发】：基于当前选中行打开下发对话框</summary>
     private void DispatchOrderMenu_Click(object sender, RoutedEventArgs e)
     {
         if (OrdersGrid.SelectedItem is not LoadingOrder order) return;
         OpenDispatchDialog(order);
     }
 
+    /// <summary>双击 OrdersGrid 行：待下发 Tab 打开下发对话框，其他 Tab 显示详情</summary>
     private void OrdersGrid_MouseDoubleClick(object sender, System.Windows.Input.MouseButtonEventArgs e)
     {
         if (OrdersGrid.SelectedItem is not LoadingOrder order) return;
@@ -370,6 +395,7 @@ public partial class MainWindow : Window
             ShowOrderDetail(order);
     }
 
+    /// <summary>打开下发对话框（从 DI 解析 ViewModel，失败则直接 new）</summary>
     private void OpenDispatchDialog(LoadingOrder order)
     {
         try
@@ -387,6 +413,7 @@ public partial class MainWindow : Window
         }
     }
 
+    /// <summary>弹窗显示单据完整详情（用于非待下发 Tab 双击查看）</summary>
     private void ShowOrderDetail(LoadingOrder order)
     {
         string detail = $"【单据详情】\n\n" +
@@ -413,6 +440,7 @@ public partial class MainWindow : Window
         MessageBox.Show(this, detail, $"单据详情 - {order.OrderNo}", MessageBoxButton.OK, MessageBoxImage.Information);
     }
 
+    /// <summary>右键菜单【取消单据】：确认后调用 CancelDispatchAsync</summary>
     private async void CancelOrderMenu_Click(object sender, RoutedEventArgs e)
     {
         if (OrdersGrid.SelectedItem is not LoadingOrder order) return;
@@ -423,6 +451,7 @@ public partial class MainWindow : Window
         if (!ok) MessageBox.Show(this, "取消失败", "提示");
     }
 
+    /// <summary>3秒一次状态轮询：刷新右下角"装料中/就绪/异常/待处理"统计</summary>
     private void StatusTimer_Tick(object? sender, EventArgs e)
     {
         try
@@ -435,6 +464,7 @@ public partial class MainWindow : Window
         catch { }
     }
 
+    /// <summary>窗口关闭事件：确认退出 → 取消事件订阅 → 停止定时器 → 关闭日志</summary>
     private void Window_Closing(object sender, System.ComponentModel.CancelEventArgs e)
     {
         var r = MessageBox.Show(this, "确认退出系统？", "退出确认",

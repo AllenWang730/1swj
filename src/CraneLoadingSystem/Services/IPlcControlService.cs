@@ -50,15 +50,24 @@ public interface IPlcControlService
 /// </summary>
 public class CraneIoStatus
 {
-    public bool IsCranePositioned { get; set; } // 鹤臂到位
-    public bool IsClampConnected { get; set; }   // 静电夹已连接
-    public bool IsTankCoverOpen { get; set; }   // 罐口盖已开
-    public bool IsInletValveOpen { get; set; }  // 入口阀开
-    public bool IsOutletValveOpen { get; set; } // 出口阀开
-    public bool IsPumpRunning { get; set; }      // 泵运行
-    public bool IsOverflowAlarm { get; set; }   // 溢出报警
-    public bool IsStaticAlarm { get; set; }     // 静电报警
-    public bool IsPressureAlarm { get; set; }   // 压力报警
+    /// <summary>鹤臂到位（DO 反馈）</summary>
+    public bool IsCranePositioned { get; set; }
+    /// <summary>静电夹已连接（DO 反馈）</summary>
+    public bool IsClampConnected { get; set; }
+    /// <summary>罐口盖已开（DO 反馈）</summary>
+    public bool IsTankCoverOpen { get; set; }
+    /// <summary>入口阀开（DO 反馈）</summary>
+    public bool IsInletValveOpen { get; set; }
+    /// <summary>出口阀开（DO 反馈）</summary>
+    public bool IsOutletValveOpen { get; set; }
+    /// <summary>泵运行（DO 反馈）</summary>
+    public bool IsPumpRunning { get; set; }
+    /// <summary>溢出报警（DI 高电平=报警）</summary>
+    public bool IsOverflowAlarm { get; set; }
+    /// <summary>静电报警（DI 高电平=报警）</summary>
+    public bool IsStaticAlarm { get; set; }
+    /// <summary>压力报警（DI 高电平=报警）</summary>
+    public bool IsPressureAlarm { get; set; }
 
     // === 8项安全联锁 DI 信号 (按 PRD Modbus 映射) ===
     /// <summary>DI00001 人体静电释放完成</summary>

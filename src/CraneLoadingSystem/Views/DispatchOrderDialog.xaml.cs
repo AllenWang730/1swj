@@ -55,6 +55,7 @@ public partial class DispatchDialogViewModel : ObservableObject
         RefreshAvailableCranes();
     }
 
+    /// <summary>刷新可用鹤位列表：按产品匹配，无匹配则兜底返回所有 Idle/Ready/Completed 鹤位</summary>
     private void RefreshAvailableCranes()
     {
         AvailableCranes.Clear();
@@ -71,6 +72,7 @@ public partial class DispatchDialogViewModel : ObservableObject
             SelectedCrane = AvailableCranes.FirstOrDefault();
     }
 
+    /// <summary>确认下发：调 OrderManager.DispatchOrderToCraneAsync 将单据分配到选中鹤位</summary>
     public async Task<bool> ConfirmDispatchAsync()
     {
         if (SelectedOrder == null || SelectedCrane == null) return false;
@@ -99,6 +101,7 @@ public partial class DispatchOrderDialog : Window
         Title = $"下发单据 {order.OrderNo} 到鹤位";
     }
 
+    /// <summary>【确认】按钮：校验选择 → 调 ConfirmDispatchAsync → 成功提示现场需手动启动 / 失败按状态提示原因</summary>
     private async void ConfirmButton_Click(object sender, RoutedEventArgs e)
     {
         if (_vm.SelectedOrder == null)

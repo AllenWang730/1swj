@@ -36,15 +36,21 @@ public enum CraneStatus
 }
 
 /// <summary>
-/// 鹤位配置信息
+/// 鹤位配置信息（静态属性，从 appsettings.json 加载）
 /// </summary>
 public partial class CranePositionConfig : ObservableObject
 {
+    /// <summary>鹤位编号（如 CP001）</summary>
     [ObservableProperty] private string _id = string.Empty;
+    /// <summary>鹤位名称（如 "1#鹤位"）</summary>
     [ObservableProperty] private string _name = string.Empty;
+    /// <summary>该鹤位支持的产品名/编号（用于下发匹配）</summary>
     [ObservableProperty] private string _productName = string.Empty;
+    /// <summary>最大流量 (L/min)，用于估算剩余时间</summary>
     [ObservableProperty] private double _maxFlowRate;
+    /// <summary>PLC Modbus 从站地址</summary>
     [ObservableProperty] private int _plcAddress;
+    /// <summary>备注说明</summary>
     [ObservableProperty] private string? _description;
 }
 
@@ -91,18 +97,27 @@ public partial class CraneRealtimeData : ObservableObject
 }
 
 /// <summary>
-/// 鹤位完整状态
+/// 鹤位完整状态（运行时实体，绑定 UI 卡片）
 /// </summary>
 public partial class CranePosition : ObservableObject
 {
+    /// <summary>静态配置</summary>
     [ObservableProperty] private CranePositionConfig _config = new();
+    /// <summary>实时运行数据</summary>
     [ObservableProperty] private CraneRealtimeData _realtimeData = new();
+    /// <summary>当前状态</summary>
     [ObservableProperty] private CraneStatus _status = CraneStatus.Offline;
+    /// <summary>当前正在执行的单据（无则 null）</summary>
     [ObservableProperty] private LoadingOrder? _currentOrder;
+    /// <summary>数据最后更新时间</summary>
     [ObservableProperty] private DateTime? _lastUpdateTime;
+    /// <summary>当前报警提示信息（null/空字符串时不显示报警条）</summary>
     [ObservableProperty] private string? _alarmMessage;
+    /// <summary>PLC 是否已连接</summary>
     [ObservableProperty] private bool _isPlcConnected;
+    /// <summary>是否处于紧急停止状态</summary>
     [ObservableProperty] private bool _isEmergencyStop;
+    /// <summary>是否为远程模式（false=现场模式，禁用远程指令）</summary>
     [ObservableProperty] private bool _isRemoteMode = true;
 
     /// <summary>

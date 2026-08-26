@@ -133,6 +133,12 @@ public partial class CranePositionCard : System.Windows.Controls.UserControl, ID
         _orderMgr = orderMgr;
     }
 
+    /// <summary>
+    /// 鹤位控制按钮统一执行入口。按 action 分流到 5 个分支：
+    /// StartCommand（启动，含装车前人员二次确认）/ StopCommand（停止，回传实际量）
+    /// / PauseCommand（暂停或恢复，恢复前重新校验联锁）/ ResetCommand（急停复位，成功才清状态）
+    /// / EmergencyStopCommand（紧急停止）。失败均有 UI 弹窗反馈。
+    /// </summary>
     private async System.Threading.Tasks.Task ExecuteCraneAction(string action)
     {
         if (_craneManager == null || Crane == null)

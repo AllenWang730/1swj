@@ -9,13 +9,21 @@ namespace CraneLoadingSystem.Services;
 /// </summary>
 public interface IDatabaseService
 {
+    /// <summary>初始化数据库（建表/索引，幂等）</summary>
     void Initialize();
+    /// <summary>插入一条报警记录</summary>
     void InsertAlarm(AlarmRecord record);
+    /// <summary>插入一条操作日志</summary>
     void InsertOperationLog(OperationLog log);
+    /// <summary>更新单据状态/实际量/完成时间（按单据号）</summary>
     void UpdateOrderStatus(string orderNo, string status, double actualWeight, DateTime? completeTime);
+    /// <summary>插入或替换单据历史（按单据号 upsert）</summary>
     void InsertOrderHistory(LoadingOrder order);
+    /// <summary>按时间/鹤位/级别查询报警记录（最多 500 条，时间倒序）</summary>
     List<AlarmRecord> QueryAlarms(DateTime? from, DateTime? to, string? craneId, AlarmLevel? level);
+    /// <summary>按时间/鹤位查询操作日志（最多 500 条，时间倒序）</summary>
     List<OperationLog> QueryOperationLogs(DateTime? from, DateTime? to, string? craneId);
+    /// <summary>查询单据历史（可按鹤位过滤，最多 limit 条，创建时间倒序）</summary>
     List<LoadingOrder> QueryOrderHistory(string? craneId = null, int limit = 100);
 }
 
