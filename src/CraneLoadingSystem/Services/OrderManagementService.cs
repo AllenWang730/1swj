@@ -99,7 +99,8 @@ public partial class OrderManagementService : ObservableObject, IOrderManagement
             if (order.Source == OrderSource.SAP)
                 await _sapService.ReportDispatchStatusAsync(orderNo, craneId, cancellationToken);
             else if (order.Source == OrderSource.ERP)
-                await _erpService.ConfirmOrderCompleteAsync(orderNo, 0, craneId, cancellationToken); // 有些ERP确认接口
+                // ★ 下发即确认接口（status=DISPATCHED），用命名参数绕过 ConfirmOrderCompleteAsync 新增的 status 参数
+                await _erpService.ConfirmOrderCompleteAsync(orderNo, 0, craneId, status: "DISPATCHED", cancellationToken: cancellationToken);
 
             // 3. 设置鹤位单据
             order.AssignedCraneId = craneId;
@@ -195,10 +196,11 @@ public partial class OrderManagementService : ObservableObject, IOrderManagement
             order.CompleteTime = endTime;
 
             // 回传SAP/ERP
+            // ★ 正常完成路径：status 走默认 "COMPLETED"，用命名参数显式传 cancellationToken
             if (order.Source == OrderSource.SAP)
-                await _sapService.ReportCompletionAsync(order.OrderNo, actualWeight, startTime, endTime, craneId, cancellationToken);
+                await _sapService.ReportCompletionAsync(order.OrderNo, actualWeight, startTime, endTime, craneId, cancellationToken: cancellationToken);
             else if (order.Source == OrderSource.ERP)
-                await _erpService.ConfirmOrderCompleteAsync(order.OrderNo, actualWeight, craneId, cancellationToken);
+                await _erpService.ConfirmOrderCompleteAsync(order.OrderNo, actualWeight, craneId, cancellationToken: cancellationToken);
 
             lock (_lockObj)
             {
