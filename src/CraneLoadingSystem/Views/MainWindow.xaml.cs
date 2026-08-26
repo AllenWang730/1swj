@@ -125,12 +125,14 @@ public partial class MainWindow : Window
         {
             if (e.IsAborted)
             {
-                // ★ 异常中断（急停/联锁破坏）：不调用 NotifyOrderCompletedAsync（避免误标 Completed 回传 SAP/ERP），
-                // 仅记录日志与操作日志。订单保持 InProgress 状态，由现场后续处理：
-                //   - 排查故障 → 复位鹤位 → 重新启动（继续装料）
-                //   - 或由人工调用 StopCommand / CancelDispatchAsync 终止单据
-                Log.Warning("[Main] 捕获鹤位 {CraneId} 异常中断事件：{Reason}，实际装载 {Weight:F2}kg（订单保持 InProgress，待人工处理）",
+                // ★ 异常中断（急停/联锁破坏）：调用 NotifyOrderAbortedAsync 把"部分完成量 + 中断原因"
+                //   回传 SAP/ERP，订单转 Cancelled（部分完成）。之前只打日志、不回传，导致 SAP 侧单据
+                //   长期挂 InProgress，现场已装走部分物料但后台无账可对。
+                Log.Warning("[Main] 捕获鹤位 {CraneId} 异常中断事件：{Reason}，实际装载 {Weight:F2}kg（回传部分量）",
                     e.CraneId, e.AbortReason ?? "(未知)", e.ActualWeight);
+                await _vm.OrderManager.NotifyOrderAbortedAsync(
+                    e.CraneId, e.ActualWeight, e.StartTime, e.EndTime,
+                    e.AbortReason ?? "未知原因");
             }
             else
             {
@@ -337,11 +339,11 @@ public partial class MainWindow : Window
 
         try
         {
-            Log.Warning("[Main] ===== 全局紧急停止触发 =====");
-            foreach (var crane in _vm.CraneManager.Cranes)
-            {
-                await _vm.CraneManager.EmergencyStopAsync(crane.Id);
-            }
+            Log.Warning("[Main] ===== 全局紧急停止触发（并行）=====");
+            // ★ Bug fix: 改 Task.WhenAll 并行下发。原串行 foreach+await 串行等待每个鹤位
+            //   EmergencyStopAsync 完成，4 个鹤位累计延迟可达数百毫秒，急停场景下不可接受。
+            //   并行后所有鹤位阀门/泵几乎同时切断，最小化物料继续外泄时间。
+            await Task.WhenAll(_vm.CraneManager.Cranes.Select(c => _vm.CraneManager.EmergencyStopAsync(c.Id)));
             _vm.StatusBarText = "⚠ 已执行全局紧急停止";
             MessageBox.Show(this, "全局紧急停止已执行。\n请排查原因后执行各鹤位【复位】操作。",
                 "全局急停完成", MessageBoxButton.OK, MessageBoxImage.Warning);

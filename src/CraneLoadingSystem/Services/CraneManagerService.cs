@@ -167,7 +167,17 @@ public class CraneManagerService : ICraneManagerService
         }
 
         crane.AlarmMessage = null;  // 启动校验通过，清除卡片报警
-        return await _plc.RemoteStartAsync(craneId, crane.CurrentOrder);
+        var started = await _plc.RemoteStartAsync(craneId, crane.CurrentOrder);
+        // ★ Bug fix: 启动成功后立即把单据状态推进到 InProgress。
+        //   之前单据从 Dispatched 直接跳到 Completed，OrderStatus.InProgress 枚举从未被使用，
+        //   导致 SAP/ERP 侧无法区分"刚下发待启动"和"正在装料"，急停中断也无法表达"装料进行中异常终止"。
+        if (started && crane.CurrentOrder.Status == OrderStatus.Dispatched)
+        {
+            crane.CurrentOrder.Status = OrderStatus.InProgress;
+            Log.Information("[CraneMgr] 鹤位 {Id} 单据 {OrderNo} 状态 Dispatched→InProgress（装料已启动）",
+                craneId, crane.CurrentOrder.OrderNo);
+        }
+        return started;
     }
 
     public async Task<bool> RemoteStopAsync(string craneId)

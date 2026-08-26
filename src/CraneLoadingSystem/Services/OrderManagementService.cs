@@ -181,6 +181,15 @@ public partial class OrderManagementService : ObservableObject, IOrderManagement
             }
 
             var order = crane.CurrentOrder;
+
+            // ★ Bug fix: 幂等守卫。自动完成路径（RefreshTimer→OnCraneCompleted）+ 手动 Reset
+            // "保险"路径（已删）曾导致此方法被调两次，SAP/ERP 双重记账 + CompletedOrders 重复条目
+            if (order.Status == OrderStatus.Completed)
+            {
+                Log.Information("[OrderMgr] 单据 {OrderNo} 已是 Completed 状态，跳过重复回传", order.OrderNo);
+                return true;
+            }
+
             order.ActualWeight = actualWeight;
             order.Status = OrderStatus.Completed;
             order.CompleteTime = endTime;
@@ -216,6 +225,66 @@ public partial class OrderManagementService : ObservableObject, IOrderManagement
         catch (Exception ex)
         {
             Log.Error(ex, "[OrderMgr] 完成处理异常 {CraneId}", craneId);
+            return false;
+        }
+    }
+
+    public async Task<bool> NotifyOrderAbortedAsync(string craneId, double actualWeight, DateTime startTime, DateTime endTime, string reason, CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            Log.Warning("[OrderMgr] 鹤位 {CraneId} 异常中断，已装 {Weight:F2}kg，原因：{Reason}",
+                craneId, actualWeight, reason);
+
+            var crane = _craneManager.GetCrane(craneId);
+            if (crane?.CurrentOrder == null)
+            {
+                Log.Warning("[OrderMgr] 异常中断通知找不到对应单据 {CraneId}", craneId);
+                return false;
+            }
+
+            var order = crane.CurrentOrder;
+
+            // 幂等守卫
+            if (order.Status == OrderStatus.Cancelled)
+            {
+                Log.Information("[OrderMgr] 单据 {OrderNo} 已是 Cancelled 状态，跳过重复异常回传", order.OrderNo);
+                return true;
+            }
+
+            order.ActualWeight = actualWeight;
+            order.Status = OrderStatus.Cancelled;  // 异常中断 → Cancelled（部分完成）
+            order.CompleteTime = endTime;
+
+            // 回传 SAP/ERP 部分完成量 + 中断原因
+            if (order.Source == OrderSource.SAP)
+                await _sapService.ReportCompletionAsync(order.OrderNo, actualWeight, startTime, endTime, craneId, cancellationToken);
+            else if (order.Source == OrderSource.ERP)
+                await _erpService.ConfirmOrderCompleteAsync(order.OrderNo, actualWeight, craneId, cancellationToken);
+
+            lock (_lockObj)
+            {
+                if (ActiveOrders.Contains(order))
+                    ActiveOrders.Remove(order);
+                CompletedOrders.Insert(0, order);
+            }
+
+            _db?.UpdateOrderStatus(order.OrderNo, OrderStatus.Cancelled.ToString(), actualWeight, endTime);
+            _db?.InsertOperationLog(new OperationLog
+            {
+                Time = DateTime.Now,
+                Operator = "System",
+                Action = "OrderAborted",
+                CraneId = craneId,
+                OrderNo = order.OrderNo,
+                Detail = $"异常中断：{reason}；已装 {actualWeight:F2}kg / 计划 {order.PlannedWeight:F2}kg"
+            });
+            Log.Information("[OrderMgr] 单据 {OrderNo} 异常中断处理结束（已转 Cancelled，部分量已回传）", order.OrderNo);
+            return true;
+        }
+        catch (Exception ex)
+        {
+            Log.Error(ex, "[OrderMgr] 异常中断处理异常 {CraneId}", craneId);
             return false;
         }
     }

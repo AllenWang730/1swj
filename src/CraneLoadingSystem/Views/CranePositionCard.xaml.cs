@@ -215,10 +215,21 @@ public partial class CranePositionCard : System.Windows.Controls.UserControl, ID
                             "恢复确认", MessageBoxButton.YesNo, MessageBoxImage.Question);
                         if (resumeConfirm != MessageBoxResult.Yes) return;
                         ok = await _craneManager.RemoteResumeAsync(craneId);
+                        // ★ Bug fix: 恢复失败必须弹窗反馈，否则用户感知"按钮没反应"
+                        // RemoteResumeAsync 内部已校验联锁并写 crane.AlarmMessage，此处兜底提示
+                        if (!ok)
+                        {
+                            MessageBox.Show($"恢复失败：{Crane.AlarmMessage ?? "安全联锁未满足，请现场排查后重试"}",
+                                "恢复失败", MessageBoxButton.OK, MessageBoxImage.Warning);
+                            return;
+                        }
                     }
                     else
                     {
                         ok = await _craneManager.RemotePauseAsync(craneId);
+                        if (!ok)
+                            MessageBox.Show($"暂停失败：{Crane.AlarmMessage ?? "请查看日志或现场确认设备状态"}",
+                                "暂停失败", MessageBoxButton.OK, MessageBoxImage.Warning);
                     }
                     break;
 
@@ -232,14 +243,13 @@ public partial class CranePositionCard : System.Windows.Controls.UserControl, ID
                         "复位将重新全检8项联锁，通过后状态恢复为待机。",
                         "确认复位", MessageBoxButton.YesNo, MessageBoxImage.Question);
                     if (res != MessageBoxResult.Yes) return;
-                    if (Crane.Status == CraneStatus.Completed && Crane.CurrentOrder != null)
-                    {
-                        // 完成后走一次通知（保险，正常 RefreshTimer 已触发）
-                        await _orderMgr!.NotifyOrderCompletedAsync(craneId,
-                            Crane.RealtimeData.LoadedWeight,
-                            Crane.CurrentOrder.DispatchTime ?? DateTime.Now,
-                            DateTime.Now);
-                    }
+                    // ★ Bug fix: 删除原"完成后走一次 NotifyOrderCompletedAsync 保险调用"。
+                    //   原逻辑企图补救 RefreshTimer 漏报，但实测产生两个问题：
+                    //   (1) 与自动完成路径并发，曾触发 SAP/ERP 双重记账
+                    //       （现已在 NotifyOrderCompletedAsync 内加幂等守卫兜底，但仍是冗余调用）
+                    //   (2) 把"复位"和"完成回传"两件事耦合在一起，意图模糊
+                    //   正常完成回传唯一入口是 RefreshTimer→OnCraneCompleted→MainWindow.CraneMgr_OnCraneCompleted；
+                    //   若需补偿，应统一在事件订阅侧处理，而非在 UI 按钮里偷偷再调一次。
                     ok = await _craneManager.EmergencyResetAsync(craneId);
                     // ★ Bug fix: 之前无条件执行 ResetCrane()，即使复位失败也会清状态，
                     // 导致 IsEmergencyStop 残留 + UI 显示 Idle 但 PLC 仍急停

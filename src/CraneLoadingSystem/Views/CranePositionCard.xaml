@@ -439,9 +439,10 @@
                                     <DataTrigger Binding="{Binding Status}" Value="Paused">
                                         <Setter Property="IsEnabled" Value="True"/>
                                     </DataTrigger>
-                                    <DataTrigger Binding="{Binding Status}" Value="Ready">
-                                        <Setter Property="IsEnabled" Value="True"/>
-                                    </DataTrigger>
+                                    <!-- ★ Bug fix: 去掉 Ready 触发器。
+                                         Ready 状态鹤管尚未连接、车辆未到位、操作员尚未做装车前确认，
+                                         此时按【停止】会错误回传 SAP/ERP "已完成"，导致 0kg 完成单据。
+                                         Ready→Idle 的回退应通过【取消下发】而非【停止】。-->
                                 </Style.Triggers>
                             </Style>
                         </Button.Style>
