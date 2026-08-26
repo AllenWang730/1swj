@@ -199,7 +199,11 @@
                     </Border>
 
                     <!-- 鹤位卡片WrapPanel布局（多鹤位同时显示） -->
-                    <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Auto"
+                    <!-- HorizontalScrollBarVisibility=Disabled 是关键：
+                         ScrollViewer 默认给内容无限水平空间，WrapPanel 永不换行，
+                         4 张卡片会全挤在一行排到视口右外。禁用水平滚动后，
+                         ScrollViewer 只给可用宽度，WrapPanel 才会自动换行。 -->
+                    <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled"
                                   Background="White"
                                   BorderBrush="#E5E7EB" BorderThickness="1">
                         <WrapPanel x:Name="CraneWrapPanel" Orientation="Horizontal" Margin="4,8"/>
