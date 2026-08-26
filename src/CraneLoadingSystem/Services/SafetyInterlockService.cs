@@ -111,6 +111,16 @@ public class SafetyInterlockService : ISafetyInterlockService
 
         var currentStatus = crane.Status;
 
+        // ★ Bug fix: 急停按钮检查移到 Ready 早返之前。原代码 Ready 分支提前 return，
+        //   导致 Ready 状态下现场按下急停按钮，系统不会自动反映为 EmergencyStop（虽然此状态
+        //   无物料流动，安全性影响小，但状态显示与现场不同步、复位逻辑会混乱）。
+        //   "任意时刻触发即全停" 应包含 Ready 状态。
+        if (io.DiEmergencyStop)
+        {
+            var esItem = crane.SafetyInterlocks.First(i => i.Kind == SafetyInterlockKind.EmergencyStop);
+            return RaiseBreach(crane.Id, esItem, "急停按钮被按下");
+        }
+
         // Ready状态：只刷新启动前联锁显示，不触发急停
         if (currentStatus == CraneStatus.Ready)
         {
@@ -128,13 +138,6 @@ public class SafetyInterlockService : ISafetyInterlockService
                 ? null
                 : "缺失: " + string.Join("、", failed.Select(f => f.Name));
             return null;
-        }
-
-        // 急停按钮：任意时刻触发即全停（最高优先级，含Idle状态）
-        if (io.DiEmergencyStop)
-        {
-            var esItem = crane.SafetyInterlocks.First(i => i.Kind == SafetyInterlockKind.EmergencyStop);
-            return RaiseBreach(crane.Id, esItem, "急停按钮被按下");
         }
 
         // 非装车中（Idle/Completed/Fault）：仅刷新信号，不触发急停

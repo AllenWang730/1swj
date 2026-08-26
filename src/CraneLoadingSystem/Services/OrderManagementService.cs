@@ -257,10 +257,11 @@ public partial class OrderManagementService : ObservableObject, IOrderManagement
             order.CompleteTime = endTime;
 
             // 回传 SAP/ERP 部分完成量 + 中断原因
+            // ★ Bug fix: status="ABORTED"。之前不传，SAP/ERP 侧收到 "COMPLETED" 误以为正常完成
             if (order.Source == OrderSource.SAP)
-                await _sapService.ReportCompletionAsync(order.OrderNo, actualWeight, startTime, endTime, craneId, cancellationToken);
+                await _sapService.ReportCompletionAsync(order.OrderNo, actualWeight, startTime, endTime, craneId, "ABORTED", cancellationToken);
             else if (order.Source == OrderSource.ERP)
-                await _erpService.ConfirmOrderCompleteAsync(order.OrderNo, actualWeight, craneId, cancellationToken);
+                await _erpService.ConfirmOrderCompleteAsync(order.OrderNo, actualWeight, craneId, "ABORTED", cancellationToken);
 
             lock (_lockObj)
             {
@@ -268,6 +269,13 @@ public partial class OrderManagementService : ObservableObject, IOrderManagement
                     ActiveOrders.Remove(order);
                 CompletedOrders.Insert(0, order);
             }
+
+            // ★ Bug fix: 必须清空 crane.CurrentOrder。否则异常中断后订单已 Cancelled 但鹤位仍持引用，
+            //   用户若复位→重新启动，RefreshTimer 会再次触发 OnCraneCompleted(IsAborted=false)，
+            //   NotifyOrderCompletedAsync 的幂等守卫只挡 Completed 不挡 Cancelled，会把订单从 Cancelled
+            //   改回 Completed 并二次回传 SAP/ERP，覆盖第一次部分量，账实彻底混乱。
+            //   正确做法：异常中断=订单作废，鹤位复位后必须重新下发新订单才能再次启动。
+            crane.CurrentOrder = null;
 
             _db?.UpdateOrderStatus(order.OrderNo, OrderStatus.Cancelled.ToString(), actualWeight, endTime);
             _db?.InsertOperationLog(new OperationLog
@@ -279,7 +287,7 @@ public partial class OrderManagementService : ObservableObject, IOrderManagement
                 OrderNo = order.OrderNo,
                 Detail = $"异常中断：{reason}；已装 {actualWeight:F2}kg / 计划 {order.PlannedWeight:F2}kg"
             });
-            Log.Information("[OrderMgr] 单据 {OrderNo} 异常中断处理结束（已转 Cancelled，部分量已回传）", order.OrderNo);
+            Log.Information("[OrderMgr] 单据 {OrderNo} 异常中断处理结束（已转 Cancelled，部分量已回传，鹤位订单引用已清空）", order.OrderNo);
             return true;
         }
         catch (Exception ex)

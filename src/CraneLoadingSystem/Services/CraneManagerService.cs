@@ -237,6 +237,27 @@ public class CraneManagerService : ICraneManagerService
             crane.Status = CraneStatus.EmergencyStop;
             crane.IsEmergencyStop = true;
             crane.AlarmMessage = "🚨 紧急停止已触发，请现场复位后重新全检8项联锁";
+
+            // ★ Bug fix: 手动急停也要触发异常回传事件。
+            //   之前只有 OnInterlockBreached（自动联锁破坏急停）会触发 OnCraneCompleted(IsAborted=true)，
+            //   手动急停按钮 / 全局急停 走本方法，订单仍保持 InProgress，已装部分量永远不回传 SAP/ERP。
+            //   实际生产中手动急停是常态（现场发现异常→按急停），账实影响严重。
+            //   仅对 InProgress 订单触发（Dispatched/Ready 状态下未装料，无需回传部分量）。
+            //   捕获 order 局部引用，避免全局急停 Task.WhenAll 并发场景下
+            //   crane.CurrentOrder 在两次访问间被 NotifyOrderAbortedAsync 异步清空导致 NRE。
+            var order = crane.CurrentOrder;
+            if (order != null && order.Status == OrderStatus.InProgress)
+            {
+                OnCraneCompleted?.Invoke(this, new CraneCompletedArgs
+                {
+                    CraneId = craneId,
+                    ActualWeight = crane.RealtimeData.LoadedWeight,
+                    StartTime = order.DispatchTime ?? DateTime.Now,
+                    EndTime = DateTime.Now,
+                    IsAborted = true,
+                    AbortReason = "手动急停"
+                });
+            }
         }
         return ok;
     }

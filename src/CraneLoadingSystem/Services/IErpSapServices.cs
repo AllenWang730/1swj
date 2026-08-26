@@ -24,8 +24,9 @@ public interface ISapService
     Task<bool> ReportDispatchStatusAsync(string orderNo, string craneId, CancellationToken cancellationToken = default);
 
     /// <summary>回传装料完成结果</summary>
+    /// <param name="status">回传状态码：默认 "COMPLETED"；异常中断回传部分量时传 "ABORTED"</param>
     Task<bool> ReportCompletionAsync(string orderNo, double actualWeight, DateTime startTime, DateTime endTime,
-        string craneId, CancellationToken cancellationToken = default);
+        string craneId, string status = "COMPLETED", CancellationToken cancellationToken = default);
 
     /// <summary>回传装料异常</summary>
     Task<bool> ReportExceptionAsync(string orderNo, string errorCode, string errorMessage, CancellationToken cancellationToken = default);
@@ -50,7 +51,9 @@ public interface IErpService
     Task<ProductInfo?> GetProductInfoAsync(string productCode, CancellationToken cancellationToken = default);
 
     /// <summary>回传单号完成信息</summary>
-    Task<bool> ConfirmOrderCompleteAsync(string orderNo, double actualWeight, string craneId, CancellationToken cancellationToken = default);
+    /// <param name="status">回传状态码：默认 "COMPLETED"；异常中断回传部分量时传 "ABORTED"</param>
+    Task<bool> ConfirmOrderCompleteAsync(string orderNo, double actualWeight, string craneId,
+        string status = "COMPLETED", CancellationToken cancellationToken = default);
 }
 
 public class CustomerInfo

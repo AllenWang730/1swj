@@ -133,11 +133,15 @@ public class ErpService : IErpService
         }
     }
 
-    public async Task<bool> ConfirmOrderCompleteAsync(string orderNo, double actualWeight, string craneId, CancellationToken cancellationToken = default)
+    public async Task<bool> ConfirmOrderCompleteAsync(string orderNo, double actualWeight, string craneId,
+        string status = "COMPLETED", CancellationToken cancellationToken = default)
     {
         try
         {
-            Log.Information("[ERP] 回传完成单据: {OrderNo}, 实际={Weight}kg, 鹤位={CraneId}", orderNo, actualWeight, craneId);
+            // ★ Bug fix: status 由调用方传入。正常完成 "COMPLETED"，急停中断回传部分量 "ABORTED"。
+            //   之前 ERP 侧 payload 没带 status 字段，无法区分正常完成与异常中断。
+            Log.Information("[ERP] 回传完成单据: {OrderNo}, 实际={Weight}kg, 鹤位={CraneId}, 状态={Status}",
+                orderNo, actualWeight, craneId, status);
             if (_config.AppSettings.EnableSimulation)
             {
                 await Task.Delay(80, cancellationToken);
@@ -149,6 +153,7 @@ public class ErpService : IErpService
                 orderNo,
                 actualWeight,
                 craneId,
+                status,
                 completedAt = DateTime.Now.ToString("yyyy-MM-ddTHH:mm:ss")
             };
             var content = new StringContent(JsonConvert.SerializeObject(payload), Encoding.UTF8, "application/json");

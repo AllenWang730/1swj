@@ -147,11 +147,13 @@ public class SapService : ISapService
     }
 
     public async Task<bool> ReportCompletionAsync(string orderNo, double actualWeight, DateTime startTime, DateTime endTime,
-        string craneId, CancellationToken cancellationToken = default)
+        string craneId, string status = "COMPLETED", CancellationToken cancellationToken = default)
     {
         try
         {
-            Log.Information("[SAP] 回传完成: {OrderNo}, 实际={Weight}kg, 鹤位={CraneId}", orderNo, actualWeight, craneId);
+            // ★ Bug fix: status 由调用方传入。正常完成传 "COMPLETED"，急停/联锁破坏中断回传部分量传 "ABORTED"。
+            //   之前写死 "COMPLETED"，导致 NotifyOrderAbortedAsync 调用时 SAP 侧误以为正常完成，账实不符。
+            Log.Information("[SAP] 回传完成: {OrderNo}, 实际={Weight}kg, 鹤位={CraneId}, 状态={Status}", orderNo, actualWeight, craneId, status);
             if (_config.AppSettings.EnableSimulation)
             {
                 await Task.Delay(100, cancellationToken);
@@ -165,7 +167,7 @@ public class SapService : ISapService
                 StartTime = startTime.ToString("yyyy-MM-ddTHH:mm:ss"),
                 EndTime = endTime.ToString("yyyy-MM-ddTHH:mm:ss"),
                 CraneId = craneId,
-                Status = "COMPLETED"
+                Status = status
             };
             var httpContent = new StringContent(JsonConvert.SerializeObject(payload), Encoding.UTF8, "application/json");
             var response = await _httpClient.PostAsync(
