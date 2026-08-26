@@ -237,12 +237,10 @@
 
                 <StackPanel Grid.Column="1">
                     <TextBlock Style="{StaticResource DataLabel}" Text="已装 / 计划 (kg)" HorizontalAlignment="Right"/>
-                    <TextBlock HorizontalAlignment="Right">
-                        <Run Style="{StaticResource DataValue}"
-                             Text="{Binding RealtimeData.LoadedWeight, StringFormat='{}{0:F1}', FallbackValue=0}"/>
+                    <TextBlock HorizontalAlignment="Right" Style="{StaticResource DataValue}">
+                        <Run Text="{Binding RealtimeData.LoadedWeight, StringFormat='{}{0:F1}', FallbackValue=0}"/>
                         <Run Text=" / " Foreground="#FFBBBBBB"/>
-                        <Run Style="{StaticResource DataValue}"
-                             Text="{Binding CurrentOrder.PlannedWeight, StringFormat='{}{0:F0}', FallbackValue=0}"/>
+                        <Run Text="{Binding CurrentOrder.PlannedWeight, StringFormat='{}{0:F0}', FallbackValue=0}"/>
                     </TextBlock>
                 </StackPanel>
             </Grid>
