@@ -89,8 +89,10 @@
                         </Ellipse.Style>
                     </Ellipse>
 
-                    <!-- 状态胶囊（动态语义色 + 发光） -->
-                    <Border x:Name="StatusBorder" Style="{StaticResource PillBadge}" Padding="14,6" Background="{StaticResource StatusIdleBrush}">
+                    <!-- 状态胶囊（动态语义色 + 发光）
+                         NOTE: 用 <Border.Style> 继承 PillBadge 并加触发器，
+                               不能在 Border 属性标签上再写 Style=""（同一个属性赋值两次 MC3024） -->
+                    <Border x:Name="StatusBorder" Padding="14,6">
                         <Border.Effect>
                             <DropShadowEffect x:Name="StatusGlow" BlurRadius="0" ShadowDepth="0" Opacity="0"/>
                         </Border.Effect>

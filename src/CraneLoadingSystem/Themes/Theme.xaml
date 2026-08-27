@@ -88,7 +88,7 @@
     <DropShadowEffect x:Key="ShadowCardSm" Color="#FF000000" BlurRadius="4"  ShadowDepth="0" Opacity="0.06"/>
     <DropShadowEffect x:Key="ShadowCard"    Color="#FF000000" BlurRadius="10" ShadowDepth="1" Opacity="0.08"/>
     <DropShadowEffect x:Key="ShadowCardLg"  Color="#FF000000" BlurRadius="20" ShadowDepth="2" Opacity="0.10"/>
-    <DropShadowEffect x:Key="ShadowEmphasis"Color="#FF000000" BlurRadius="14" ShadowDepth="2" Opacity="0.18"/>
+    <DropShadowEffect x:Key="ShadowEmphasis" Color="#FF000000" BlurRadius="14" ShadowDepth="2" Opacity="0.18"/>
 
     <!-- 渐变（用于标题栏/按钮悬停/状态徽章） -->
     <LinearGradientBrush x:Key="HeaderGradient" StartPoint="0,0" EndPoint="1,1">
