@@ -293,6 +293,66 @@ public class CraneManagerService : ICraneManagerService
         return true;
     }
 
+    /// <summary>
+    /// 全局强制复位所有鹤位（不走联锁校验，直接清零所有鹤位信息恢复空闲）。
+    /// 用于现场维护/换班/系统重置场景。InProgress 订单会先触发异常中断回传 SAP/ERP。
+    /// 与单卡 EmergencyResetAsync 的区别：本方法是强制操作，不依赖现场联锁状态。
+    /// </summary>
+    public async Task<bool> ResetAllAsync()
+    {
+        Log.Warning("[CraneMgr] ===== 全局强制复位触发（共 {Count} 个鹤位）=====", Cranes.Count);
+
+        int successCount = 0;
+        var tasks = Cranes.Select(async crane =>
+        {
+            try
+            {
+                // 1. 如果有 InProgress 订单，先触发异常中断回传（避免数据丢失账实不符）
+                var order = crane.CurrentOrder;
+                if (order != null && order.Status == OrderStatus.InProgress)
+                {
+                    Log.Information("[CraneMgr] 全局复位：鹤位 {Id} 有 InProgress 单据 {OrderNo}，触发异常回传（已装 {Weight:F2}kg）",
+                        crane.Id, order.OrderNo, crane.RealtimeData.LoadedWeight);
+                    OnCraneCompleted?.Invoke(this, new CraneCompletedArgs
+                    {
+                        CraneId = crane.Id,
+                        ActualWeight = crane.RealtimeData.LoadedWeight,
+                        StartTime = order.DispatchTime ?? DateTime.Now,
+                        EndTime = DateTime.Now,
+                        IsAborted = true,
+                        AbortReason = "全局强制复位"
+                    });
+                }
+
+                // 2. PLC 侧清急停 DI 信号（不校验联锁，强制路径）
+                await _plc.EmergencyResetAsync(crane.Id);
+
+                // 3. 清零所有鹤位信息（实时数据/报警/订单引用/联锁状态/状态→Idle）
+                crane.ResetCrane();
+
+                // 4. 显式设回 Idle（ResetCrane 已设，但显式表达意图，并触发 UI 刷新）
+                crane.Status = CraneStatus.Idle;
+                crane.IsEmergencyStop = false;
+                crane.AlarmMessage = null;
+                crane.IsPlcConnected = _plc.IsConnected;
+                crane.LastUpdateTime = DateTime.Now;
+
+                Log.Information("[CraneMgr] 全局复位：鹤位 {Id} 已清零恢复空闲", crane.Id);
+                successCount++;
+            }
+            catch (Exception ex)
+            {
+                Log.Error(ex, "[CraneMgr] 全局复位：鹤位 {Id} 异常", crane.Id);
+                crane.AlarmMessage = $"复位异常：{ex.Message}";
+            }
+        });
+        await Task.WhenAll(tasks);
+
+        Log.Information("[CraneMgr] 全局复位完成：成功 {Success}/{Total}",
+            successCount, Cranes.Count);
+        return successCount == Cranes.Count;
+    }
+
     public IEnumerable<CranePosition> GetAvailableCranesForProduct(string productCode)
     {
         // 产品匹配策略：鹤位产品名与单据产品名/编码做双向包含匹配

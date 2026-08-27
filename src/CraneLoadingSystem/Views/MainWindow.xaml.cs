@@ -378,6 +378,50 @@ public partial class MainWindow : Window
         }
     }
 
+    /// <summary>
+    /// 【全局复位】按钮：强制清零所有鹤位信息（实时数据/报警/订单引用/状态→Idle）。
+    /// 不走联锁校验，用于现场维护/换班/系统重置。InProgress 订单会先回传 SAP/ERP。
+    /// </summary>
+    private async void GlobalReset_Click(object sender, RoutedEventArgs e)
+    {
+        // 二次确认（强制清零会丢失正在装料的数据）
+        var r = MessageBox.Show(this,
+            "↻ 确认执行【全局复位】？\n\n" +
+            "此操作将强制清零所有鹤位信息：\n" +
+            "  • 实时数据（流量/压力/温度/进度）全部归零\n" +
+            "  • 报警信息清空\n" +
+            "  • 当前单据引用清除（InProgress 订单会先回传 SAP/ERP 部分量）\n" +
+            "  • 鹤位状态恢复为【待机】\n\n" +
+            "适用场景：现场维护 / 换班 / 系统重置\n" +
+            "⚠ 不走联锁校验，复位后鹤位可直接接收新单据。",
+            "全局复位确认", MessageBoxButton.YesNo, MessageBoxImage.Question,
+            MessageBoxResult.No);
+        if (r != MessageBoxResult.Yes) return;
+
+        try
+        {
+            Log.Warning("[Main] ===== 全局复位触发（用户确认）=====");
+            _vm.StatusBarText = "↻ 正在执行全局复位...";
+            var ok = await _vm.CraneManager.ResetAllAsync();
+            _vm.StatusBarText = ok
+                ? "✓ 全局复位完成：所有鹤位已恢复空闲"
+                : "⚠ 全局复位部分失败，请查看日志";
+            MessageBox.Show(this,
+                ok
+                    ? "全局复位完成。\n所有鹤位信息已清零，状态恢复为待机。"
+                    : "全局复位部分失败，请查看日志和鹤位卡片报警信息。",
+                "全局复位完成", MessageBoxButton.OK,
+                ok ? MessageBoxImage.Information : MessageBoxImage.Warning);
+        }
+        catch (Exception ex)
+        {
+            Log.Error(ex, "[Main] 全局复位异常");
+            _vm.StatusBarText = "✗ 全局复位异常：" + ex.Message;
+            MessageBox.Show(this, "执行异常：" + ex.Message, "错误",
+                MessageBoxButton.OK, MessageBoxImage.Error);
+        }
+    }
+
     /// <summary>右键菜单【下发】：基于当前选中行打开下发对话框</summary>
     private void DispatchOrderMenu_Click(object sender, RoutedEventArgs e)
     {

@@ -98,6 +98,10 @@
                         <Button Style="{StaticResource ToolbarBtn}" Content="⚠ 全局紧急停止"
                                 Background="#FFDC2626" Foreground="White" FontWeight="Bold"
                                 Click="GlobalEmergency_Click"/>
+                        <Button Style="{StaticResource ToolbarBtn}" Content="↻ 全局复位"
+                                Background="#FF0EA5E9" Foreground="White" FontWeight="Bold"
+                                Click="GlobalReset_Click"
+                                ToolTip="强制复位所有鹤位：清零实时数据/报警/订单引用，恢复空闲状态"/>
                     </WrapPanel>
                 </Border>
             </StackPanel>

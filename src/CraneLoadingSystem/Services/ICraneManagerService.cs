@@ -27,9 +27,15 @@ public interface ICraneManagerService
     Task<bool> RemotePauseAsync(string craneId);
     Task<bool> RemoteResumeAsync(string craneId);
 
-    /// <summary>紧急停止/复位</summary>
+    /// <summary>紧急停止/复位（单卡，含8项联锁校验，安全路径）</summary>
     Task<bool> EmergencyStopAsync(string craneId);
     Task<bool> EmergencyResetAsync(string craneId);
+
+    /// <summary>
+    /// 全局强制复位所有鹤位（不走联锁校验，直接清零所有鹤位信息恢复空闲）。
+    /// 用于现场维护/换班/系统重置场景。InProgress 订单会触发异常中断回传 SAP/ERP。
+    /// </summary>
+    Task<bool> ResetAllAsync();
 
     /// <summary>查询可用鹤位（根据产品匹配）</summary>
     IEnumerable<CranePosition> GetAvailableCranesForProduct(string productCode);
