@@ -409,8 +409,9 @@
                         <ColumnDefinition Width="*"/>
                     </Grid.ColumnDefinitions>
 
-                    <!-- ▶ 启动（绿色 Success） -->
-                    <Button Grid.Column="0" Content="▶ 启动" Style="{StaticResource ButtonSuccess}"
+                    <!-- ▶ 启动（绿色 Success）
+                         NOTE: 不要在 Button 属性上写 Style=""，避免与 <Button.Style> 重复赋值触发 MC3024 -->
+                    <Button Grid.Column="0" Content="▶ 启动"
                             Command="{Binding StartCommand, ElementName=CraneCardRoot}"
                             Margin="0,0,4,0">
                         <Button.Style>
@@ -429,7 +430,7 @@
                     </Button>
 
                     <!-- ⏸ 暂停 / ▶ 恢复 -->
-                    <Button Grid.Column="1" Style="{StaticResource {x:Type Button}}"
+                    <Button Grid.Column="1"
                             Command="{Binding PauseCommand, ElementName=CraneCardRoot}"
                             Margin="4,0">
                         <Button.Style>
@@ -455,7 +456,7 @@
                     </Button>
 
                     <!-- ⏹ 停止（Danger） -->
-                    <Button Grid.Column="2" Content="⏹ 停止" Style="{StaticResource ButtonDanger}"
+                    <Button Grid.Column="2" Content="⏹ 停止"
                             Command="{Binding StopCommand, ElementName=CraneCardRoot}"
                             Margin="4,0">
                         <Button.Style>
@@ -474,7 +475,7 @@
                     </Button>
 
                     <!-- ↻ 复位（Info / 青色） -->
-                    <Button Grid.Column="3" Content="↻ 复位" Style="{StaticResource ButtonInfo}"
+                    <Button Grid.Column="3" Content="↻ 复位"
                             Command="{Binding ResetCommand, ElementName=CraneCardRoot}"
                             Margin="4,0">
                         <Button.Style>
@@ -501,7 +502,7 @@
                         </Button.Style>
                     </Button>
 
-                    <!-- ⚠ 急停（深红 + 加粗） -->
+                    <!-- ⚠ 急停（深红 + 加粗）（此按钮无额外触发器，允许属性上写 Style 即可） -->
                     <Button Grid.Column="4" Content="⚠ 急停" Style="{StaticResource ButtonDangerStrong}"
                             FontWeight="Bold" Command="{Binding EmergencyStopCommand, ElementName=CraneCardRoot}"
                             Margin="4,0,0,0"

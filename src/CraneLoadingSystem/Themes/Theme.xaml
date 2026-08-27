@@ -134,6 +134,14 @@
         <Setter Property="Template">
             <Setter.Value>
                 <ControlTemplate TargetType="Button">
+                    <!--
+                        NOTE on x:Name="Shadow"（DropShadowEffect 不可被 Trigger TargetName 引用）：
+                          只有 FrameworkElement / FrameworkContentElement 可作为 ControlTemplate
+                          的命名参与 Trigger TargetName；DropShadowEffect 是 Freezable 属性值对象，
+                          即便给它写了 x:Name="Shadow" 也会触发 MC4111："无法找到 Trigger 目标
+                          Shadow"。所以此处不命名 Effect，触发器直接 TargetName="Bd" 用整值
+                          重写 Effect 属性。
+                    -->
                     <Border x:Name="Bd"
                             Background="{TemplateBinding Background}"
                             CornerRadius="8"
@@ -144,24 +152,30 @@
                             <ScaleTransform x:Name="Scale" ScaleX="1.0" ScaleY="1.0"/>
                         </Border.RenderTransform>
                         <Border.Effect>
-                            <DropShadowEffect x:Name="Shadow" BlurRadius="0" ShadowDepth="0" Opacity="0"/>
+                            <DropShadowEffect BlurRadius="0" ShadowDepth="0" Opacity="0" Color="#FF000000"/>
                         </Border.Effect>
                         <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"
                                           RecognizesAccessKey="True"/>
                     </Border>
                     <ControlTemplate.Triggers>
-                        <!-- 悬停：提亮 + 微阴影 -->
+                        <!-- 悬停：提亮 + 微阴影（整值赋 Effect，不用 TargetName 到 DropShadowEffect 内部） -->
                         <Trigger Property="IsMouseOver" Value="True">
                             <Setter TargetName="Bd" Property="Opacity" Value="0.92"/>
-                            <Setter TargetName="Shadow" Property="BlurRadius" Value="6"/>
-                            <Setter TargetName="Shadow" Property="Opacity" Value="0.22"/>
+                            <Setter TargetName="Bd" Property="Effect">
+                                <Setter.Value>
+                                    <DropShadowEffect BlurRadius="6" ShadowDepth="0" Opacity="0.22" Color="#FF000000"/>
+                                </Setter.Value>
+                            </Setter>
                         </Trigger>
                         <!-- 按下：缩小 3% + 更深阴影 -->
                         <Trigger Property="IsPressed" Value="True">
                             <Setter TargetName="Scale" Property="ScaleX" Value="0.97"/>
                             <Setter TargetName="Scale" Property="ScaleY" Value="0.97"/>
-                            <Setter TargetName="Shadow" Property="BlurRadius" Value="2"/>
-                            <Setter TargetName="Shadow" Property="Opacity" Value="0.4"/>
+                            <Setter TargetName="Bd" Property="Effect">
+                                <Setter.Value>
+                                    <DropShadowEffect BlurRadius="2" ShadowDepth="0" Opacity="0.40" Color="#FF000000"/>
+                                </Setter.Value>
+                            </Setter>
                         </Trigger>
                         <!-- 禁用 -->
                         <Trigger Property="IsEnabled" Value="False">
