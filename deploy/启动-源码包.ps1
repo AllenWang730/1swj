@@ -4,7 +4,28 @@
 #>
 [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
 chcp 65001 | Out-Null
-Set-Location $PSScriptRoot
+
+# ===== 容错定位工作目录（永远不会因路径不存在而 Set-Location 失败）=====
+# 优先级：
+#   1) param -WorkDir 传参
+#   2) $PSScriptRoot（脚本所在目录；若不存在则跳过）
+#   3) 父目录存在 CraneLoadingSystem.sln（用户把脚本放在 repo 根时）
+#   4) 当前工作目录 pwd
+#   5) $env:USERPROFILE\Desktop\1swj（强制创建）
+param([string]$WorkDir = "")
+$base = $null
+if ($WorkDir -and (Test-Path (Split-Path $WorkDir -Parent))) {
+    $base = $WorkDir
+} elseif ($PSScriptRoot -and (Test-Path $PSScriptRoot)) {
+    $base = $PSScriptRoot
+} elseif (Test-Path (Join-Path (Get-Location) "CraneLoadingSystem.sln")) {
+    $base = (Get-Location).Path
+} else {
+    $base = Join-Path $env:USERPROFILE "Desktop\1swj_run"
+}
+New-Item -ItemType Directory -Force -Path $base -ErrorAction Stop | Out-Null
+try { Set-Location $base -ErrorAction Stop } catch { throw "无法切换到目录 $base ：$($_.Exception.Message)" }
+Write-Host "  工作目录：$base" -ForegroundColor Gray
 
 Write-Host "============================================================"  -ForegroundColor Cyan
 Write-Host "  CraneLoadingSystem  v1.0.0  源码包启动 (PowerShell)"          -ForegroundColor Cyan
