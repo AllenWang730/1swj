@@ -6,138 +6,119 @@
              xmlns:local="clr-namespace:CraneLoadingSystem.Views"
              xmlns:models="clr-namespace:CraneLoadingSystem.Models"
              mc:Ignorable="d"
-             d:DesignHeight="560" d:DesignWidth="480"
-             x:Name="CraneCardRoot">
+             d:DesignHeight="620" d:DesignWidth="500"
+             x:Name="CraneCardRoot"
+             SnapsToDevicePixels="True">
     <UserControl.Resources>
-        <!-- Converter声明 -->
+        <!-- Converter 声明 -->
         <local:SecondsToMinutesConverter x:Key="SecToMinConv"/>
         <local:BoolToVisibilityConverter x:Key="BoolToVisConv"/>
-
-        <!-- 状态颜色资源字典 -->
-        <Style x:Key="StatusBadgeIdle" TargetType="Border">
-            <Setter Property="Background" Value="#FF6C757D"/>
-            <Setter Property="CornerRadius" Value="10"/>
-        </Style>
-        <Style x:Key="StatusBadgeReady" TargetType="Border">
-            <Setter Property="Background" Value="#FF17A2B8"/>
-            <Setter Property="CornerRadius" Value="10"/>
-        </Style>
-        <Style x:Key="StatusBadgeLoading" TargetType="Border">
-            <Setter Property="Background" Value="#FF28A745"/>
-            <Setter Property="CornerRadius" Value="10"/>
-        </Style>
-        <Style x:Key="StatusBadgePaused" TargetType="Border">
-            <Setter Property="Background" Value="#FFFFC107"/>
-            <Setter Property="CornerRadius" Value="10"/>
-        </Style>
-        <Style x:Key="StatusBadgeCompleted" TargetType="Border">
-            <Setter Property="Background" Value="#FF007BFF"/>
-            <Setter Property="CornerRadius" Value="10"/>
-        </Style>
-        <Style x:Key="StatusBadgeFault" TargetType="Border">
-            <Setter Property="Background" Value="#FFDC3545"/>
-            <Setter Property="CornerRadius" Value="10"/>
-        </Style>
-        <Style x:Key="StatusBadgeOffline" TargetType="Border">
-            <Setter Property="Background" Value="#FF343A40"/>
-            <Setter Property="CornerRadius" Value="10"/>
-        </Style>
-        <Style x:Key="StatusBadgeEmergency" TargetType="Border">
-            <Setter Property="Background" Value="#FF8B0000"/>
-            <Setter Property="CornerRadius" Value="10"/>
-        </Style>
-
-        <!-- 数据显示模板 -->
-        <Style TargetType="TextBlock" x:Key="DataLabel">
-            <Setter Property="FontSize" Value="11"/>
-            <Setter Property="Foreground" Value="#FF888888"/>
-        </Style>
-        <Style TargetType="TextBlock" x:Key="DataValue">
-            <Setter Property="FontSize" Value="14"/>
-            <Setter Property="FontWeight" Value="SemiBold"/>
-            <Setter Property="Foreground" Value="#FF222222"/>
-        </Style>
-        <Style TargetType="Button" x:Key="ControlBtnBase">
-            <Setter Property="Height" Value="32"/>
-            <Setter Property="FontSize" Value="12"/>
-            <Setter Property="FontWeight" Value="SemiBold"/>
-            <Setter Property="Cursor" Value="Hand"/>
-            <Setter Property="Margin" Value="2,0"/>
-        </Style>
     </UserControl.Resources>
 
-    <Border Background="White" CornerRadius="8" BorderBrush="#FFE0E0E0" BorderThickness="1"
-            Padding="12" Margin="4">
+    <!-- ==================== 卡片容器：阴影 + 圆角 16 + 白背景 + 细边框 ==================== -->
+    <Border CornerRadius="16" Background="White"
+            BorderBrush="{StaticResource BorderLight}" BorderThickness="1"
+            Effect="{StaticResource ShadowCard}"
+            Padding="18" Margin="6,6">
         <Grid>
             <Grid.RowDefinitions>
-                <RowDefinition Height="Auto"/>
-                <RowDefinition Height="Auto"/>
-                <RowDefinition Height="Auto"/>
-                <RowDefinition Height="Auto"/>
-                <RowDefinition Height="Auto"/>
-                <RowDefinition Height="Auto"/>
-                <RowDefinition Height="Auto"/>
-                <RowDefinition Height="Auto"/>
-                <RowDefinition Height="Auto"/>
-                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>  <!-- 0: 头部 -->
+                <RowDefinition Height="Auto"/>  <!-- 1: 分隔线 -->
+                <RowDefinition Height="Auto"/>  <!-- 2: 单据基本信息 -->
+                <RowDefinition Height="Auto"/>  <!-- 3: 客户/产品 -->
+                <RowDefinition Height="Auto"/>  <!-- 4: 进度条 + 装载量 -->
+                <RowDefinition Height="Auto"/>  <!-- 5: 4 个指标卡 -->
+                <RowDefinition Height="Auto"/>  <!-- 6: 安全联锁矩阵 -->
+                <RowDefinition Height="Auto"/>  <!-- 7: 缺失提示文字 -->
+                <RowDefinition Height="Auto"/>  <!-- 8: 报警条 -->
+                <RowDefinition Height="Auto"/>  <!-- 9: 控制按钮 -->
             </Grid.RowDefinitions>
 
-            <!-- 头部：鹤位名称 + 状态 -->
-            <Grid Grid.Row="0" Margin="0,0,0,8">
+            <!-- ==================================================
+                 0. 头部：鹤位名称 + 产品 + 状态胶囊
+                 ================================================== -->
+            <Grid Grid.Row="0" Margin="0,0,0,14">
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="*"/>
                     <ColumnDefinition Width="Auto"/>
                 </Grid.ColumnDefinitions>
 
-                <StackPanel Orientation="Horizontal">
-                    <TextBlock Text="{Binding Name, FallbackValue=1#鹤位}"
-                               FontSize="20" FontWeight="Bold" Foreground="#FF2C3E50" VerticalAlignment="Center"/>
-                    <TextBlock Text="{Binding Config.ProductName, FallbackValue=汽油}"
-                               FontSize="12" Foreground="#FF7F8C8D" VerticalAlignment="Center" Margin="8,0,0,0"/>
+                <StackPanel VerticalAlignment="Center">
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="Auto"/>
+                            <ColumnDefinition Width="*"/>
+                        </Grid.ColumnDefinitions>
+                        <!-- 鹤位编号胶囊块（渐变色 + 圆角 10） -->
+                        <Border Grid.Column="0" CornerRadius="10"
+                                Background="{StaticResource PrimaryGradient}"
+                                Padding="10,6" VerticalAlignment="Center">
+                            <TextBlock Text="{Binding Name, FallbackValue='1#鹤位'}"
+                                       FontSize="14" FontWeight="Bold" Foreground="White"/>
+                        </Border>
+                        <StackPanel Grid.Column="1" VerticalAlignment="Center" Margin="12,0,0,0">
+                            <TextBlock Text="{Binding Config.ProductName, FallbackValue='汽油'}"
+                                       Style="{StaticResource FieldLabel}"/>
+                        </StackPanel>
+                    </Grid>
                 </StackPanel>
 
-                <!-- 状态Badge -->
+                <!-- 右侧：PLC 灯 + 状态胶囊 -->
                 <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
-                    <!-- PLC连接状态指示灯 -->
-                    <Ellipse Width="10" Height="10" VerticalAlignment="Center" Margin="0,0,4,0">
+                    <!-- PLC 指示灯（发光） -->
+                    <Ellipse Width="10" Height="10" VerticalAlignment="Center" Margin="0,0,10,0">
                         <Ellipse.Style>
                             <Style TargetType="Ellipse">
-                                <Setter Property="Fill" Value="Red"/>
+                                <Setter Property="Fill" Value="{StaticResource DangerBrush}"/>
+                                <Setter Property="Effect">
+                                    <Setter.Value>
+                                        <DropShadowEffect Color="{StaticResource Danger-500}" BlurRadius="6" ShadowDepth="0" Opacity="0.7"/>
+                                    </Setter.Value>
+                                </Setter>
                                 <Style.Triggers>
                                     <DataTrigger Binding="{Binding IsPlcConnected}" Value="True">
-                                        <Setter Property="Fill" Value="#28A745"/>
+                                        <Setter Property="Fill" Value="{StaticResource SuccessBrush}"/>
+                                        <Setter Property="Effect">
+                                            <Setter.Value>
+                                                <DropShadowEffect Color="{StaticResource Success-500}" BlurRadius="6" ShadowDepth="0" Opacity="0.7"/>
+                                            </Setter.Value>
+                                        </Setter>
                                     </DataTrigger>
                                 </Style.Triggers>
                             </Style>
                         </Ellipse.Style>
                     </Ellipse>
 
-                    <Border Padding="10,4" x:Name="StatusBorder">
+                    <!-- 状态胶囊（动态语义色 + 发光） -->
+                    <Border x:Name="StatusBorder" Style="{StaticResource PillBadge}" Padding="14,6" Background="{StaticResource StatusIdleBrush}">
+                        <Border.Effect>
+                            <DropShadowEffect x:Name="StatusGlow" BlurRadius="0" ShadowDepth="0" Opacity="0"/>
+                        </Border.Effect>
                         <Border.Style>
-                            <Style TargetType="Border">
-                                <Setter Property="Background" Value="#FF6C757D"/>
-                                <Setter Property="CornerRadius" Value="10"/>
+                            <Style TargetType="Border" BasedOn="{StaticResource PillBadge}">
+                                <Setter Property="Padding" Value="14,6"/>
+                                <Setter Property="Background" Value="{StaticResource StatusIdleBrush}"/>
                                 <Style.Triggers>
                                     <DataTrigger Binding="{Binding Status}" Value="Ready">
-                                        <Setter Property="Background" Value="#FF17A2B8"/>
+                                        <Setter Property="Background" Value="{StaticResource StatusReadyBrush}"/>
                                     </DataTrigger>
                                     <DataTrigger Binding="{Binding Status}" Value="Loading">
-                                        <Setter Property="Background" Value="#FF28A745"/>
+                                        <Setter Property="Background" Value="{StaticResource StatusLoadingBrush}"/>
                                     </DataTrigger>
                                     <DataTrigger Binding="{Binding Status}" Value="Paused">
-                                        <Setter Property="Background" Value="#FFFFC107"/>
+                                        <Setter Property="Background" Value="{StaticResource StatusPausedBrush}"/>
                                     </DataTrigger>
                                     <DataTrigger Binding="{Binding Status}" Value="Completed">
-                                        <Setter Property="Background" Value="#FF007BFF"/>
+                                        <Setter Property="Background" Value="{StaticResource StatusCompletedBrush}"/>
                                     </DataTrigger>
                                     <DataTrigger Binding="{Binding Status}" Value="Fault">
-                                        <Setter Property="Background" Value="#FFDC3545"/>
+                                        <Setter Property="Background" Value="{StaticResource StatusFaultBrush}"/>
                                     </DataTrigger>
                                     <DataTrigger Binding="{Binding Status}" Value="Offline">
-                                        <Setter Property="Background" Value="#FF343A40"/>
+                                        <Setter Property="Background" Value="{StaticResource StatusOfflineBrush}"/>
                                     </DataTrigger>
                                     <DataTrigger Binding="{Binding Status}" Value="EmergencyStop">
-                                        <Setter Property="Background" Value="#FF8B0000"/>
+                                        <Setter Property="Background" Value="{StaticResource StatusEmergencyBrush}"/>
                                     </DataTrigger>
                                 </Style.Triggers>
                             </Style>
@@ -147,107 +128,133 @@
                 </StackPanel>
             </Grid>
 
-            <!-- 分隔线 -->
-            <Grid Grid.Row="1">
-                <Rectangle Height="1" Fill="#FFEEEEEE" Margin="0,4"/>
-            </Grid>
+            <!-- ==================================================
+                 1. 分隔线
+                 ================================================== -->
+            <Border Grid.Row="1" Height="1" Background="{StaticResource Gray-100}" Margin="0,2,0,12"/>
 
-            <!-- 单据信息行 -->
-            <Grid Grid.Row="2" Margin="0,6,0,4">
+            <!-- ==================================================
+                 2. 单据编号 / 车牌
+                 ================================================== -->
+            <Grid Grid.Row="2" Margin="0,0,0,10">
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="*"/>
                     <ColumnDefinition Width="Auto"/>
                 </Grid.ColumnDefinitions>
                 <StackPanel>
-                    <TextBlock Style="{StaticResource DataLabel}" Text="单据编号"/>
-                    <TextBlock Style="{StaticResource DataValue}"
+                    <TextBlock Text="单据编号" Style="{StaticResource FieldLabel}"/>
+                    <TextBlock Style="{StaticResource FieldValue}"
                                Text="{Binding CurrentOrder.OrderNo, FallbackValue=--- 未分配 ---}"
                                TextTrimming="CharacterEllipsis"/>
                 </StackPanel>
                 <StackPanel Grid.Column="1">
-                    <TextBlock Style="{StaticResource DataLabel}" Text="车牌"/>
-                    <TextBlock Style="{StaticResource DataValue}"
-                               Text="{Binding CurrentOrder.VehicleNo, FallbackValue=---}"
-                               HorizontalAlignment="Right"/>
+                    <TextBlock Text="车牌" Style="{StaticResource FieldLabel}" HorizontalAlignment="Right"/>
+                    <TextBlock Style="{StaticResource FieldValue}" HorizontalAlignment="Right"
+                               Text="{Binding CurrentOrder.VehicleNo, FallbackValue=---}"/>
                 </StackPanel>
             </Grid>
 
-            <!-- 客户+产品行 -->
-            <Grid Grid.Row="3" Margin="0,2,0,6">
+            <!-- ==================================================
+                 3. 客户 / 产品
+                 ================================================== -->
+            <Grid Grid.Row="3" Margin="0,0,0,14">
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="*"/>
                     <ColumnDefinition Width="Auto"/>
                 </Grid.ColumnDefinitions>
                 <StackPanel>
-                    <TextBlock Style="{StaticResource DataLabel}" Text="客户"/>
-                    <TextBlock Style="{StaticResource DataValue}"
+                    <TextBlock Text="客户" Style="{StaticResource FieldLabel}"/>
+                    <TextBlock Style="{StaticResource FieldValue}" FontSize="13"
                                Text="{Binding CurrentOrder.CustomerName, FallbackValue=---}"
-                               TextTrimming="CharacterEllipsis" FontSize="12"/>
+                               TextTrimming="CharacterEllipsis"/>
                 </StackPanel>
                 <StackPanel Grid.Column="1">
-                    <TextBlock Style="{StaticResource DataLabel}" Text="产品"/>
-                    <TextBlock Style="{StaticResource DataValue}"
-                               Text="{Binding CurrentOrder.ProductName, FallbackValue=---}"
-                               HorizontalAlignment="Right" FontSize="12"/>
+                    <TextBlock Text="产品" Style="{StaticResource FieldLabel}" HorizontalAlignment="Right"/>
+                    <TextBlock Style="{StaticResource FieldValue}" FontSize="13" HorizontalAlignment="Right"
+                               Text="{Binding CurrentOrder.ProductName, FallbackValue=---}"/>
                 </StackPanel>
             </Grid>
 
-            <!-- 进度条 + 装载量 -->
-            <Grid Grid.Row="4" Margin="0,4,0,4">
+            <!-- ==================================================
+                 4. 进度条 + 装载量
+                 ================================================== -->
+            <Grid Grid.Row="4" Margin="0,0,0,14">
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="2*"/>
-                    <ColumnDefinition Width="Auto" MinWidth="100"/>
+                    <ColumnDefinition Width="Auto" MinWidth="110"/>
                 </Grid.ColumnDefinitions>
 
-                <StackPanel Grid.Column="0" Margin="0,0,10,0">
+                <!-- 左侧：进度 -->
+                <StackPanel Grid.Column="0" Margin="0,0,12,0">
                     <Grid>
                         <Grid.ColumnDefinitions>
                             <ColumnDefinition Width="*"/>
                             <ColumnDefinition Width="Auto"/>
                         </Grid.ColumnDefinitions>
-                        <TextBlock Style="{StaticResource DataLabel}" Text="装料进度"/>
-                        <TextBlock Grid.Column="1" Style="{StaticResource DataValue}"
-                                   Text="{Binding RealtimeData.Progress, StringFormat='{}{0:F1}%', FallbackValue=0%}"
-                                   HorizontalAlignment="Right" FontSize="13"/>
+                        <TextBlock Text="装料进度" Style="{StaticResource FieldLabel}"/>
+                        <TextBlock Grid.Column="1" Text="{Binding RealtimeData.Progress, StringFormat='{}{0:F1}%', FallbackValue=0%}"
+                                   Style="{StaticResource FieldValue}" FontSize="13"/>
                     </Grid>
-                    <ProgressBar x:Name="LoadingProgressBar"
-                                 Value="{Binding RealtimeData.Progress}" Minimum="0" Maximum="100"
-                                 Height="16" Margin="0,4,0,0"
-                                 Background="#FFEEEEEE" Foreground="#FF28A745">
-                        <ProgressBar.Style>
-                            <Style TargetType="ProgressBar">
-                                <Setter Property="Foreground" Value="#FF28A745"/>
-                                <Style.Triggers>
-                                    <DataTrigger Binding="{Binding Status}" Value="Paused">
-                                        <Setter Property="Foreground" Value="#FFFFC107"/>
-                                    </DataTrigger>
-                                    <DataTrigger Binding="{Binding Status}" Value="EmergencyStop">
-                                        <Setter Property="Foreground" Value="#FFDC3545"/>
-                                    </DataTrigger>
-                                    <DataTrigger Binding="{Binding Status}" Value="Fault">
-                                        <Setter Property="Foreground" Value="#FFDC3545"/>
-                                    </DataTrigger>
-                                    <DataTrigger Binding="{Binding Status}" Value="Completed">
-                                        <Setter Property="Foreground" Value="#FF007BFF"/>
-                                    </DataTrigger>
-                                </Style.Triggers>
-                            </Style>
-                        </ProgressBar.Style>
-                    </ProgressBar>
+                    <!-- 进度条（带发光效果 + 圆角 Clip） -->
+                    <Grid Margin="0,6,0,0">
+                        <Border Background="{StaticResource Gray-100}" CornerRadius="999" Height="10"/>
+                        <ProgressBar x:Name="LoadingProgressBar"
+                                     Value="{Binding RealtimeData.Progress}" Minimum="0" Maximum="100"
+                                     Height="10" Background="Transparent"
+                                     BorderThickness="0" Foreground="{StaticResource StatusLoadingBrush}">
+                            <ProgressBar.Style>
+                                <Style TargetType="ProgressBar">
+                                    <Setter Property="Foreground" Value="{StaticResource StatusLoadingBrush}"/>
+                                    <Setter Property="Template">
+                                        <Setter.Value>
+                                            <ControlTemplate TargetType="ProgressBar">
+                                                <Decorator>
+                                                    <Border CornerRadius="999" Height="{TemplateBinding Height}" Background="Transparent">
+                                                        <Border.Clip>
+                                                            <RectangleGeometry RadiusX="999" RadiusY="999" Rect="0,0,{TemplateBinding ActualWidth},{TemplateBinding ActualHeight}"/>
+                                                        </Border.Clip>
+                                                        <Border x:Name="PART_Indicator" CornerRadius="999"
+                                                                HorizontalAlignment="Left" Background="{TemplateBinding Foreground}"/>
+                                                    </Border>
+                                                </Decorator>
+                                            </ControlTemplate>
+                                        </Setter.Value>
+                                    </Setter>
+                                    <Style.Triggers>
+                                        <DataTrigger Binding="{Binding Status}" Value="Paused">
+                                            <Setter Property="Foreground" Value="{StaticResource StatusPausedBrush}"/>
+                                        </DataTrigger>
+                                        <DataTrigger Binding="{Binding Status}" Value="EmergencyStop">
+                                            <Setter Property="Foreground" Value="{StaticResource StatusFaultBrush}"/>
+                                        </DataTrigger>
+                                        <DataTrigger Binding="{Binding Status}" Value="Fault">
+                                            <Setter Property="Foreground" Value="{StaticResource StatusFaultBrush}"/>
+                                        </DataTrigger>
+                                        <DataTrigger Binding="{Binding Status}" Value="Completed">
+                                            <Setter Property="Foreground" Value="{StaticResource StatusCompletedBrush}"/>
+                                        </DataTrigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </ProgressBar.Style>
+                        </ProgressBar>
+                    </Grid>
                 </StackPanel>
 
+                <!-- 右侧：已装 / 计划 -->
                 <StackPanel Grid.Column="1">
-                    <TextBlock Style="{StaticResource DataLabel}" Text="已装 / 计划 (kg)" HorizontalAlignment="Right"/>
-                    <TextBlock HorizontalAlignment="Right" Style="{StaticResource DataValue}">
-                        <Run Text="{Binding RealtimeData.LoadedWeight, StringFormat='{}{0:F1}', FallbackValue=0}"/>
-                        <Run Text=" / " Foreground="#FFBBBBBB"/>
-                        <Run Text="{Binding CurrentOrder.PlannedWeight, StringFormat='{}{0:F0}', FallbackValue=0}"/>
+                    <TextBlock Text="已装 / 计划 (kg)" Style="{StaticResource FieldLabel}" HorizontalAlignment="Right"/>
+                    <TextBlock HorizontalAlignment="Right" Style="{StaticResource FieldValueBig}">
+                        <Run Text="{Binding RealtimeData.LoadedWeight, StringFormat='{}{0:F0}', FallbackValue=0}"/>
+                        <Run Text=" / " Foreground="{StaticResource TextTertiary}"/>
+                        <Run Text="{Binding CurrentOrder.PlannedWeight, StringFormat='{}{0:F0}', FallbackValue=0}" FontSize="13"/>
                     </TextBlock>
                 </StackPanel>
             </Grid>
 
-            <!-- 实时数据仪表 -->
-            <Grid Grid.Row="5" Margin="0,4,0,8">
+            <!-- ==================================================
+                 5. 四个实时指标（MiniCard 容器）
+                 ================================================== -->
+            <Grid Grid.Row="5" Margin="0,0,0,14">
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="*"/>
                     <ColumnDefinition Width="*"/>
@@ -256,113 +263,112 @@
                 </Grid.ColumnDefinitions>
 
                 <!-- 瞬时流量 -->
-                <Border Grid.Column="0" Background="#FFF8F9FA" CornerRadius="6" Margin="0,0,4,0" Padding="6,4">
+                <Border Grid.Column="0" Style="{StaticResource MiniCard}" Margin="0,0,4,0">
                     <StackPanel>
-                        <TextBlock Style="{StaticResource DataLabel}" Text="瞬时流量"/>
-                        <TextBlock Style="{StaticResource DataValue}" FontSize="15"
-                                   Text="{Binding RealtimeData.InstantFlow, StringFormat='{}{0:F1} L/min', FallbackValue='0.0 L/min'}"/>
+                        <TextBlock Text="瞬时流量" Style="{StaticResource FieldLabel}"/>
+                        <TextBlock Style="{StaticResource FieldValue}" FontSize="15"
+                                   Text="{Binding RealtimeData.InstantFlow, StringFormat='{}{0:F0} L/min', FallbackValue='0 L/min'}"/>
                     </StackPanel>
                 </Border>
-
                 <!-- 入口压力 -->
-                <Border Grid.Column="1" Background="#FFF8F9FA" CornerRadius="6" Margin="2,0,2,0" Padding="6,4">
+                <Border Grid.Column="1" Style="{StaticResource MiniCard}" Margin="4,0">
                     <StackPanel>
-                        <TextBlock Style="{StaticResource DataLabel}" Text="入口压力"/>
-                        <TextBlock Style="{StaticResource DataValue}" FontSize="15"
+                        <TextBlock Text="入口压力" Style="{StaticResource FieldLabel}"/>
+                        <TextBlock Style="{StaticResource FieldValue}" FontSize="15"
                                    Text="{Binding RealtimeData.InletPressure, StringFormat='{}{0:F2} MPa', FallbackValue='0.00 MPa'}"/>
                     </StackPanel>
                 </Border>
-
                 <!-- 温度 -->
-                <Border Grid.Column="2" Background="#FFF8F9FA" CornerRadius="6" Margin="2,0,2,0" Padding="6,4">
+                <Border Grid.Column="2" Style="{StaticResource MiniCard}" Margin="4,0">
                     <StackPanel>
-                        <TextBlock Style="{StaticResource DataLabel}" Text="温度"/>
-                        <TextBlock Style="{StaticResource DataValue}" FontSize="15"
+                        <TextBlock Text="温度" Style="{StaticResource FieldLabel}"/>
+                        <TextBlock Style="{StaticResource FieldValue}" FontSize="15"
                                    Text="{Binding RealtimeData.Temperature, StringFormat='{}{0:F1} ℃', FallbackValue='0.0 ℃'}"/>
                     </StackPanel>
                 </Border>
-
                 <!-- 时间 -->
-                <Border Grid.Column="3" Background="#FFF8F9FA" CornerRadius="6" Margin="4,0,0,0" Padding="6,4">
+                <Border Grid.Column="3" Style="{StaticResource MiniCard}" Margin="4,0,0,0">
                     <StackPanel>
-                        <TextBlock Style="{StaticResource DataLabel}" Text="已用 / 剩余 (分)"/>
-                        <TextBlock Style="{StaticResource DataValue}" FontSize="15">
+                        <TextBlock Text="已用 / 剩余" Style="{StaticResource FieldLabel}"/>
+                        <TextBlock Style="{StaticResource FieldValue}" FontSize="15">
                             <Run Text="{Binding RealtimeData.ElapsedSeconds, Converter={StaticResource SecToMinConv}, FallbackValue='0'}"/>
-                            <Run Text=" / "/>
+                            <Run Text=" / " Foreground="{StaticResource TextTertiary}"/>
                             <Run Text="{Binding RealtimeData.EstimatedRemainingSeconds, Converter={StaticResource SecToMinConv}, FallbackValue='0'}"/>
                         </TextBlock>
                     </StackPanel>
                 </Border>
             </Grid>
 
-            <!-- 安全联锁8项矩阵 -->
-            <GroupBox Grid.Row="6" Header="安全联锁" FontSize="11" Padding="6,4" BorderBrush="#FFDDDDDD" Margin="0,4,0,6">
-                <Grid>
-                    <Grid.ColumnDefinitions>
-                        <ColumnDefinition Width="*"/>
-                        <ColumnDefinition Width="*"/>
-                        <ColumnDefinition Width="*"/>
-                        <ColumnDefinition Width="*"/>
-                        <ColumnDefinition Width="*"/>
-                        <ColumnDefinition Width="*"/>
-                        <ColumnDefinition Width="*"/>
-                        <ColumnDefinition Width="*"/>
-                    </Grid.ColumnDefinitions>
-
-                    <ItemsControl ItemsSource="{Binding SafetyInterlocks}" AlternationCount="8">
-                        <ItemsControl.ItemsPanel>
-                            <ItemsPanelTemplate>
-                                <UniformGrid Columns="8" Rows="1"/>
-                            </ItemsPanelTemplate>
-                        </ItemsControl.ItemsPanel>
-                        <ItemsControl.ItemTemplate>
-                            <DataTemplate>
-                                <StackPanel HorizontalAlignment="Center" Margin="0,2" ToolTip="{Binding Name}">
-                                    <Ellipse Width="18" Height="18" HorizontalAlignment="Center">
-                                        <Ellipse.Style>
-                                            <Style TargetType="Ellipse">
-                                                <Setter Property="Fill" Value="#FF28A745"/>
-                                                <Setter Property="Stroke" Value="#FF1E7E34"/>
-                                                <Setter Property="StrokeThickness" Value="1"/>
-                                                <Style.Triggers>
-                                                    <DataTrigger Binding="{Binding StartupSatisfied}" Value="False">
-                                                        <Setter Property="Fill" Value="#FFDC3545"/>
-                                                        <Setter Property="Stroke" Value="#FF8B0000"/>
-                                                    </DataTrigger>
-                                                    <DataTrigger Binding="{Binding IsAlarming}" Value="True">
-                                                        <Setter Property="Fill" Value="#FFDC3545"/>
-                                                    </DataTrigger>
-                                                </Style.Triggers>
-                                            </Style>
-                                        </Ellipse.Style>
-                                    </Ellipse>
-                                    <TextBlock Text="{Binding Name}" FontSize="10" HorizontalAlignment="Center"
-                                               Margin="0,1,0,0" Foreground="#FF555555"/>
-                                </StackPanel>
-                            </DataTemplate>
-                        </ItemsControl.ItemTemplate>
-                    </ItemsControl>
-                </Grid>
+            <!-- ==================================================
+                 6. 安全联锁 8 项矩阵（GroupBox + 发光指示灯）
+                 ================================================== -->
+            <GroupBox Grid.Row="6" Header="🔒 安全联锁 (8 项)" FontSize="11" Margin="0,0,0,12">
+                <ItemsControl ItemsSource="{Binding SafetyInterlocks}">
+                    <ItemsControl.ItemsPanel>
+                        <ItemsPanelTemplate>
+                            <UniformGrid Columns="8" Rows="1"/>
+                        </ItemsPanelTemplate>
+                    </ItemsControl.ItemsPanel>
+                    <ItemsControl.ItemTemplate>
+                        <DataTemplate>
+                            <StackPanel HorizontalAlignment="Center" Margin="0,2" ToolTip="{Binding Name}">
+                                <!-- 指示灯（通过时绿色发光，失败时红色脉冲感） -->
+                                <Grid Width="22" Height="22" HorizontalAlignment="Center">
+                                    <Ellipse x:Name="OuterGlow" Opacity="0.35" Fill="#28A745"/>
+                                    <Ellipse x:Name="Core" Width="18" Height="18"
+                                             HorizontalAlignment="Center" VerticalAlignment="Center"
+                                             Fill="{StaticResource SuccessBrush}"
+                                             Stroke="#059669" StrokeThickness="1"/>
+                                </Grid>
+                                <TextBlock Text="{Binding Name}" FontSize="10" HorizontalAlignment="Center"
+                                           Margin="0,3,0,0" Foreground="{StaticResource TextSecondary}"/>
+                            </StackPanel>
+                            <DataTemplate.Triggers>
+                                <!-- 启动未通过 / 运行报警 → 红 -->
+                                <MultiDataTrigger>
+                                    <MultiDataTrigger.Conditions>
+                                        <Condition Binding="{Binding StartupSatisfied}" Value="False"/>
+                                    </MultiDataTrigger.Conditions>
+                                    <Setter TargetName="Core" Property="Fill" Value="{StaticResource DangerBrush}"/>
+                                    <Setter TargetName="Core" Property="Stroke" Value="#B91C1C"/>
+                                    <Setter TargetName="OuterGlow" Property="Fill" Value="#EF4444"/>
+                                </MultiDataTrigger>
+                                <DataTrigger Binding="{Binding IsAlarming}" Value="True">
+                                    <Setter TargetName="Core" Property="Fill" Value="{StaticResource DangerBrush}"/>
+                                    <Setter TargetName="Core" Property="Stroke" Value="#B91C1C"/>
+                                    <Setter TargetName="OuterGlow" Property="Fill" Value="#EF4444"/>
+                                </DataTrigger>
+                            </DataTemplate.Triggers>
+                        </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                </ItemsControl>
             </GroupBox>
 
-            <!-- 缺失提示文本（启动前联锁未满足时显示）
-                 与下面的报警 Border 保持间距：下 Margin=8 -->
-            <TextBlock Grid.Row="7" FontSize="11" Foreground="#FFDC3545" Margin="0,2,0,8"
-                       TextWrapping="Wrap" LineStackingStrategy="BlockLineHeight" LineHeight="18"
+            <!-- ==================================================
+                 7. 缺失联锁提示文字（启动前未满足时显示）
+                 ================================================== -->
+            <TextBlock Grid.Row="7" FontSize="12" Foreground="{StaticResource DangerBrush}"
+                       Margin="2,2,2,8"
+                       TextWrapping="Wrap" LineStackingStrategy="BlockLineHeight" LineHeight="20"
+                       FontWeight="SemiBold"
                        Text="{Binding MissingInterlockNames, FallbackValue=''}"
                        Visibility="{Binding AllInterlocksSatisfied, Converter={StaticResource BoolToVisConv}, ConverterParameter=Invert, FallbackValue=Collapsed}"/>
 
-            <!-- ★ 报警信息文本（急停/联锁破坏/启动拒绝等）
-                 - 单独占 Row=8，避免与缺失提示/控制按钮重叠
-                 - 外边距上下 8px + 内边距上下 7px：文字不会顶到边框
-                 - TextBlock 显式行高 LineHeight=20：多行报警不会字体重叠
-                 - MinHeight=36：即使报警文本很短，卡片视觉也稳定 -->
-            <Border Grid.Row="8" Margin="0,8,0,10" CornerRadius="4" Padding="9,7"
-                     Background="#FFFEF2F2" BorderBrush="#FFFECACA" BorderThickness="1">
+            <!-- ==================================================
+                 8. 报警信息卡片（独立行，圆角 + 发光 + 展开）
+                 ================================================== -->
+            <Border Grid.Row="8" CornerRadius="10" Padding="14,12" Margin="0,6,0,14"
+                    Background="{StaticResource Danger-50}"
+                    BorderBrush="#FECACA" BorderThickness="1">
                 <Border.Style>
                     <Style TargetType="Border">
                         <Setter Property="Visibility" Value="Visible"/>
-                        <Setter Property="MinHeight" Value="36"/>
+                        <Setter Property="MinHeight" Value="44"/>
+                        <Setter Property="Effect">
+                            <Setter.Value>
+                                <DropShadowEffect Color="#EF4444" BlurRadius="6" ShadowDepth="0" Opacity="0.08"/>
+                            </Setter.Value>
+                        </Setter>
                         <Style.Triggers>
                             <DataTrigger Binding="{Binding AlarmMessage}" Value="{x:Null}">
                                 <Setter Property="Visibility" Value="Collapsed"/>
@@ -375,14 +381,23 @@
                         </Style.Triggers>
                     </Style>
                 </Border.Style>
-                <TextBlock FontSize="12" FontWeight="SemiBold" TextWrapping="Wrap"
-                           LineStackingStrategy="BlockLineHeight" LineHeight="20"
-                           Foreground="#FFDC2626" VerticalAlignment="Center"
-                           Text="{Binding AlarmMessage, FallbackValue=''}"/>
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="Auto"/>
+                        <ColumnDefinition Width="*"/>
+                    </Grid.ColumnDefinitions>
+                    <TextBlock Text="🚨" FontSize="18" VerticalAlignment="Top" Margin="0,0,10,0"/>
+                    <TextBlock Grid.Column="1" FontSize="12" FontWeight="SemiBold" TextWrapping="Wrap"
+                               LineStackingStrategy="BlockLineHeight" LineHeight="20"
+                               Foreground="{StaticResource DangerBrush}" VerticalAlignment="Center"
+                               Text="{Binding AlarmMessage, FallbackValue=''}"/>
+                </Grid>
             </Border>
 
-            <!-- 控制按钮：与上面报警 Border 保持 10px 下边距，GroupBox 上 Padding 调大 -->
-            <GroupBox Grid.Row="9" Header="控制操作" FontSize="11" Padding="6,8,6,4" BorderBrush="#FFDDDDDD">
+            <!-- ==================================================
+                 9. 控制按钮（语义色 + 现代化样式）
+                 ================================================== -->
+            <GroupBox Grid.Row="9" Header="🎮 控制操作">
                 <Grid>
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="*"/>
@@ -392,12 +407,12 @@
                         <ColumnDefinition Width="*"/>
                     </Grid.ColumnDefinitions>
 
-                    <!-- 启动 -->
-                    <Button Grid.Column="0" Content="▶ 启动"
-                            Background="#FF28A745" Foreground="White" BorderThickness="0"
-                            Command="{Binding StartCommand, ElementName=CraneCardRoot}">
+                    <!-- ▶ 启动（绿色 Success） -->
+                    <Button Grid.Column="0" Content="▶ 启动" Style="{StaticResource ButtonSuccess}"
+                            Command="{Binding StartCommand, ElementName=CraneCardRoot}"
+                            Margin="0,0,4,0">
                         <Button.Style>
-                            <Style TargetType="Button" BasedOn="{StaticResource ControlBtnBase}">
+                            <Style TargetType="Button" BasedOn="{StaticResource ButtonSuccess}">
                                 <Setter Property="IsEnabled" Value="False"/>
                                 <Style.Triggers>
                                     <DataTrigger Binding="{Binding Status}" Value="Ready">
@@ -411,24 +426,25 @@
                         </Button.Style>
                     </Button>
 
-                    <!-- 暂停/恢复 -->
-                    <Button Grid.Column="1" Content="⏸ 暂停" Foreground="White" BorderThickness="0"
-                            Background="#FF6C757D"
-                            Command="{Binding PauseCommand, ElementName=CraneCardRoot}">
+                    <!-- ⏸ 暂停 / ▶ 恢复 -->
+                    <Button Grid.Column="1" Style="{StaticResource {x:Type Button}}"
+                            Command="{Binding PauseCommand, ElementName=CraneCardRoot}"
+                            Margin="4,0">
                         <Button.Style>
-                            <Style TargetType="Button" BasedOn="{StaticResource ControlBtnBase}">
-                                <Setter Property="Background" Value="#FF6C757D"/>
-                                <Setter Property="Content" Value="⏸ 暂停"/>
+                            <Style TargetType="Button" BasedOn="{StaticResource {x:Type Button}}">
                                 <Setter Property="IsEnabled" Value="False"/>
+                                <Setter Property="Content" Value="⏸ 暂停"/>
+                                <Setter Property="Background" Value="{StaticResource Gray-500}"/>
+                                <Setter Property="Foreground" Value="White"/>
                                 <Style.Triggers>
                                     <DataTrigger Binding="{Binding Status}" Value="Loading">
                                         <Setter Property="IsEnabled" Value="True"/>
-                                        <Setter Property="Background" Value="#FF6C757D"/>
+                                        <Setter Property="Background" Value="{StaticResource Gray-500}"/>
                                         <Setter Property="Content" Value="⏸ 暂停"/>
                                     </DataTrigger>
                                     <DataTrigger Binding="{Binding Status}" Value="Paused">
                                         <Setter Property="IsEnabled" Value="True"/>
-                                        <Setter Property="Background" Value="#FF17A2B8"/>
+                                        <Setter Property="Background" Value="{StaticResource StatusReadyBrush}"/>
                                         <Setter Property="Content" Value="▶ 恢复"/>
                                     </DataTrigger>
                                 </Style.Triggers>
@@ -436,12 +452,12 @@
                         </Button.Style>
                     </Button>
 
-                    <!-- 停止 -->
-                    <Button Grid.Column="2" Content="⏹ 停止"
-                            Background="#FFDC3545" Foreground="White" BorderThickness="0"
-                            Command="{Binding StopCommand, ElementName=CraneCardRoot}">
+                    <!-- ⏹ 停止（Danger） -->
+                    <Button Grid.Column="2" Content="⏹ 停止" Style="{StaticResource ButtonDanger}"
+                            Command="{Binding StopCommand, ElementName=CraneCardRoot}"
+                            Margin="4,0">
                         <Button.Style>
-                            <Style TargetType="Button" BasedOn="{StaticResource ControlBtnBase}">
+                            <Style TargetType="Button" BasedOn="{StaticResource ButtonDanger}">
                                 <Setter Property="IsEnabled" Value="False"/>
                                 <Style.Triggers>
                                     <DataTrigger Binding="{Binding Status}" Value="Loading">
@@ -450,21 +466,17 @@
                                     <DataTrigger Binding="{Binding Status}" Value="Paused">
                                         <Setter Property="IsEnabled" Value="True"/>
                                     </DataTrigger>
-                                    <!-- ★ Bug fix: 去掉 Ready 触发器。
-                                         Ready 状态鹤管尚未连接、车辆未到位、操作员尚未做装车前确认，
-                                         此时按【停止】会错误回传 SAP/ERP "已完成"，导致 0kg 完成单据。
-                                         Ready→Idle 的回退应通过【取消下发】而非【停止】。-->
                                 </Style.Triggers>
                             </Style>
                         </Button.Style>
                     </Button>
 
-                    <!-- 复位 -->
-                    <Button Grid.Column="3" Content="↻ 复位"
-                            Background="#FF17A2B8" Foreground="White" BorderThickness="0"
-                            Command="{Binding ResetCommand, ElementName=CraneCardRoot}">
+                    <!-- ↻ 复位（Info / 青色） -->
+                    <Button Grid.Column="3" Content="↻ 复位" Style="{StaticResource ButtonInfo}"
+                            Command="{Binding ResetCommand, ElementName=CraneCardRoot}"
+                            Margin="4,0">
                         <Button.Style>
-                            <Style TargetType="Button" BasedOn="{StaticResource ControlBtnBase}">
+                            <Style TargetType="Button" BasedOn="{StaticResource ButtonInfo}">
                                 <Setter Property="IsEnabled" Value="False"/>
                                 <Style.Triggers>
                                     <DataTrigger Binding="{Binding Status}" Value="Completed">
@@ -473,15 +485,12 @@
                                     <DataTrigger Binding="{Binding Status}" Value="Fault">
                                         <Setter Property="IsEnabled" Value="True"/>
                                     </DataTrigger>
-                                    <!-- ★ Bug fix: 急停后必须能点击复位，否则无法恢复 -->
                                     <DataTrigger Binding="{Binding Status}" Value="EmergencyStop">
                                         <Setter Property="IsEnabled" Value="True"/>
                                     </DataTrigger>
-                                    <!-- 暂停状态也允许强制复位（清0并恢复空闲） -->
                                     <DataTrigger Binding="{Binding Status}" Value="Paused">
                                         <Setter Property="IsEnabled" Value="True"/>
                                     </DataTrigger>
-                                    <!-- 就绪状态允许复位（用于撤销下发后清0） -->
                                     <DataTrigger Binding="{Binding Status}" Value="Ready">
                                         <Setter Property="IsEnabled" Value="True"/>
                                     </DataTrigger>
@@ -490,12 +499,11 @@
                         </Button.Style>
                     </Button>
 
-                    <!-- 紧急停止 -->
-                    <Button Grid.Column="4" Style="{StaticResource ControlBtnBase}" Content="⚠ 急停"
-                            Background="#FF8B0000" Foreground="White" BorderThickness="0" FontWeight="Bold"
-                            Command="{Binding EmergencyStopCommand, ElementName=CraneCardRoot}">
-                        <Button.ToolTip>紧急停止（立即切断所有阀门、停泵）</Button.ToolTip>
-                    </Button>
+                    <!-- ⚠ 急停（深红 + 加粗） -->
+                    <Button Grid.Column="4" Content="⚠ 急停" Style="{StaticResource ButtonDangerStrong}"
+                            FontWeight="Bold" Command="{Binding EmergencyStopCommand, ElementName=CraneCardRoot}"
+                            Margin="4,0,0,0"
+                            ToolTip="紧急停止（立即切断所有阀门、停泵）"/>
                 </Grid>
             </GroupBox>
         </Grid>

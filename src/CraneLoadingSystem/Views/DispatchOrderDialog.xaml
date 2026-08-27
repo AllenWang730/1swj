@@ -5,126 +5,138 @@
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:local="clr-namespace:CraneLoadingSystem.Views"
         mc:Ignorable="d"
-        Title="下发单据到鹤位" Height="480" Width="560"
-        WindowStartupLocation="CenterOwner"
-        ResizeMode="CanMinimize"
-        Background="#FFF5F7FA"
-        FontFamily="Segoe UI">
+        Title="下发单据到鹤位" Height="520" Width="600"
+        WindowStartupLocation="CenterOwner" ResizeMode="CanMinimize"
+        Background="{StaticResource AppBackground}"
+        FontFamily="{StaticResource GlobalFontFamily}" FontSize="{StaticResource GlobalFontSize}"
+        SnapsToDevicePixels="True">
     <Window.Resources>
         <local:RecommendedFlagConverter x:Key="RecommendedFlagConv"/>
-        <Style TargetType="TextBlock" x:Key="Label">
-            <Setter Property="FontSize" Value="12"/>
-            <Setter Property="Foreground" Value="#FF555555"/>
-            <Setter Property="Margin" Value="0,0,0,4"/>
-        </Style>
-        <Style TargetType="TextBox" x:Key="FieldBox">
-            <Setter Property="Height" Value="32"/>
-            <Setter Property="Padding" Value="8,4"/>
-            <Setter Property="Margin" Value="0,0,0,10"/>
-            <Setter Property="IsReadOnly" Value="True"/>
-            <Setter Property="Background" Value="#FFFFFFFF"/>
-            <Setter Property="BorderBrush" Value="#FFD0D0D0"/>
-        </Style>
     </Window.Resources>
-    <Grid Margin="16">
+
+    <Grid Margin="20">
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto"/>
             <RowDefinition Height="*"/>
             <RowDefinition Height="Auto"/>
         </Grid.RowDefinitions>
 
-        <!-- 单据信息 -->
-        <Border Grid.Row="0" Background="White" CornerRadius="8" Padding="12" BorderBrush="#FFE5E7EB" BorderThickness="1">
+        <!-- ========== 单据信息卡片 ========== -->
+        <Border Grid.Row="0" Style="{StaticResource CardContainer}">
             <StackPanel>
-                <TextBlock Text="📋 单据信息" FontWeight="Bold" FontSize="14" Foreground="#FF2C3E50" Margin="0,0,0,8"/>
+                <StackPanel Orientation="Horizontal" Margin="0,0,0,12">
+                    <Border Width="4" Height="22" CornerRadius="2" Background="{StaticResource PrimaryGradient}" VerticalAlignment="Center"/>
+                    <TextBlock Text="📋 单据信息" FontWeight="Bold" FontSize="15"
+                               Margin="10,0,0,0" VerticalAlignment="Center"/>
+                </StackPanel>
                 <Grid>
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="*"/>
                         <ColumnDefinition Width="*"/>
                     </Grid.ColumnDefinitions>
-                    <StackPanel Grid.Column="0" Margin="0,0,8,0">
-                        <TextBlock Style="{StaticResource Label}" Text="单据编号"/>
-                        <TextBox Style="{StaticResource FieldBox}" Text="{Binding SelectedOrder.OrderNo, FallbackValue=''}"/>
-                        <TextBlock Style="{StaticResource Label}" Text="客户"/>
-                        <TextBox Style="{StaticResource FieldBox}" Text="{Binding SelectedOrder.CustomerName, FallbackValue=''}"/>
-                        <TextBlock Style="{StaticResource Label}" Text="司机/电话"/>
-                        <TextBox Style="{StaticResource FieldBox}">
+                    <!-- 左列 -->
+                    <StackPanel Grid.Column="0" Margin="0,0,10,0">
+                        <TextBlock Text="单据编号" Style="{StaticResource FieldLabel}"/>
+                        <TextBox Text="{Binding SelectedOrder.OrderNo, FallbackValue=''}" IsReadOnly="True"/>
+                        <TextBlock Text="客户" Style="{StaticResource FieldLabel}" Margin="0,10,0,0"/>
+                        <TextBox Text="{Binding SelectedOrder.CustomerName, FallbackValue=''}" IsReadOnly="True"/>
+                        <TextBlock Text="司机 / 电话" Style="{StaticResource FieldLabel}" Margin="0,10,0,0"/>
+                        <TextBox IsReadOnly="True">
                             <TextBox.Text>
-                                <MultiBinding StringFormat="{}{0}  {1}">
+                                <MultiBinding StringFormat="{}{0}   {1}">
                                     <Binding Path="SelectedOrder.DriverName"/>
                                     <Binding Path="SelectedOrder.DriverPhone"/>
                                 </MultiBinding>
                             </TextBox.Text>
                         </TextBox>
                     </StackPanel>
-                    <StackPanel Grid.Column="1">
-                        <TextBlock Style="{StaticResource Label}" Text="车牌号码"/>
-                        <TextBox Style="{StaticResource FieldBox}" Text="{Binding SelectedOrder.VehicleNo, FallbackValue=''}"/>
-                        <TextBlock Style="{StaticResource Label}" Text="产品"/>
-                        <TextBox Style="{StaticResource FieldBox}" Text="{Binding SelectedOrder.ProductName, FallbackValue=''}"/>
-                        <TextBlock Style="{StaticResource Label}" Text="计划装载量 (kg)"/>
-                        <TextBox Style="{StaticResource FieldBox}" Text="{Binding SelectedOrder.PlannedWeight, StringFormat='{}{0:F2} kg'}"/>
+                    <!-- 右列 -->
+                    <StackPanel Grid.Column="1" Margin="10,0,0,0">
+                        <TextBlock Text="车牌号码" Style="{StaticResource FieldLabel}"/>
+                        <TextBox Text="{Binding SelectedOrder.VehicleNo, FallbackValue=''}" IsReadOnly="True"/>
+                        <TextBlock Text="产品" Style="{StaticResource FieldLabel}" Margin="0,10,0,0"/>
+                        <TextBox Text="{Binding SelectedOrder.ProductName, FallbackValue=''}" IsReadOnly="True"/>
+                        <TextBlock Text="计划装载量 (kg)" Style="{StaticResource FieldLabel}" Margin="0,10,0,0"/>
+                        <TextBox Text="{Binding SelectedOrder.PlannedWeight, StringFormat='{}{0:N0} kg'}" IsReadOnly="True"/>
                     </StackPanel>
                 </Grid>
             </StackPanel>
         </Border>
 
-        <!-- 鹤位选择 -->
-        <Border Grid.Row="1" Background="White" CornerRadius="8" Padding="12" Margin="0,12,0,0"
-                BorderBrush="#FFE5E7EB" BorderThickness="1">
+        <!-- ========== 鹤位选择卡片 ========== -->
+        <Border Grid.Row="1" Style="{StaticResource CardContainer}" Margin="0,16,0,0">
             <DockPanel>
-                <StackPanel DockPanel.Dock="Top" Orientation="Horizontal" Margin="0,0,0,8">
-                    <TextBlock Text="🏭 选择鹤位" FontWeight="Bold" FontSize="14" Foreground="#FF2C3E50" VerticalAlignment="Center"/>
-                    <Button Content="🔄 刷新可用鹤位" Margin="8,0,0,0" Padding="8,4" FontSize="11"
-                            Background="#FF3498DB" Foreground="White" BorderThickness="0" Cursor="Hand"
-                            Command="{Binding RefreshAvailableCommand}"/>
-                </StackPanel>
+                <!-- 顶栏：标题 + 刷新按钮 -->
+                <DockPanel DockPanel.Dock="Top" LastChildFill="False" Margin="0,0,0,10">
+                    <StackPanel DockPanel.Dock="Left" Orientation="Horizontal" VerticalAlignment="Center">
+                        <Border Width="4" Height="22" CornerRadius="2" Background="{StaticResource SuccessGradient}" VerticalAlignment="Center"/>
+                        <TextBlock Text="🏭 选择鹤位" FontWeight="Bold" FontSize="15"
+                                   Margin="10,0,0,0" VerticalAlignment="Center"/>
+                    </StackPanel>
+                    <Button DockPanel.Dock="Right" Content="🔄 刷新可用鹤位" Style="{StaticResource ButtonGhost}"
+                            Command="{Binding RefreshAvailableCommand}" FontSize="12" Padding="12,0"/>
+                </DockPanel>
+
+                <!-- 鹤位列表 -->
                 <ListBox ItemsSource="{Binding AvailableCranes}" SelectedItem="{Binding SelectedCrane}"
-                         Background="#FFF9FAFB" BorderBrush="#FFE5E7EB" ScrollViewer.VerticalScrollBarVisibility="Auto">
+                         Background="{StaticResource PanelBackground}" BorderThickness="0" Padding="0">
                     <ListBox.ItemContainerStyle>
                         <Style TargetType="ListBoxItem">
-                            <Setter Property="Margin" Value="0,2"/>
-                            <Setter Property="Padding" Value="6"/>
+                            <Setter Property="Margin" Value="0,4"/>
+                            <Setter Property="Padding" Value="0"/>
                             <Setter Property="Template">
                                 <Setter.Value>
                                     <ControlTemplate TargetType="ListBoxItem">
-                                        <Border x:Name="Bd" CornerRadius="6" Background="Transparent" Padding="8"
-                                                BorderBrush="Transparent" BorderThickness="2">
+                                        <Border x:Name="Bd" CornerRadius="10" Background="White" Padding="12"
+                                                BorderBrush="{StaticResource BorderLight}" BorderThickness="1"
+                                                SnapsToDevicePixels="True">
                                             <Grid>
                                                 <Grid.ColumnDefinitions>
                                                     <ColumnDefinition Width="Auto"/>
                                                     <ColumnDefinition Width="*"/>
                                                     <ColumnDefinition Width="Auto"/>
                                                 </Grid.ColumnDefinitions>
-                                                <!-- 状态指示圆 -->
-                                                <Ellipse Width="12" Height="12" VerticalAlignment="Center" Margin="0,0,10,0">
+                                                <!-- 状态指示灯（发光） -->
+                                                <Ellipse Width="12" Height="12" VerticalAlignment="Center" Margin="0,0,12,0">
                                                     <Ellipse.Fill>
-                                                        <SolidColorBrush Color="#6C757D"/>
+                                                        <SolidColorBrush Color="#6B7280"/>
                                                     </Ellipse.Fill>
+                                                    <Ellipse.Effect>
+                                                        <DropShadowEffect Color="#6B7280" BlurRadius="4" ShadowDepth="0" Opacity="0.5"/>
+                                                    </Ellipse.Effect>
                                                 </Ellipse>
+                                                <!-- 鹤位信息 -->
                                                 <StackPanel Grid.Column="1">
-                                                    <TextBlock FontWeight="Bold" FontSize="13"
-                                                               Text="{Binding Name}"/>
-                                                    <TextBlock FontSize="11" Foreground="#FF777777">
-                                                        <Run Text="产品: "/>
+                                                    <TextBlock FontWeight="Bold" FontSize="14"
+                                                               Text="{Binding Name}"
+                                                               Foreground="{StaticResource TextPrimary}"/>
+                                                    <TextBlock FontSize="11" Foreground="{StaticResource TextTertiary}"
+                                                               Margin="0,3,0,0">
+                                                        <Run Text="产品："/>
                                                         <Run Text="{Binding Config.ProductName}"/>
-                                                        <Run Text=" · 状态: "/>
+                                                        <Run Text="   ·   状态："/>
                                                         <Run Text="{Binding Status}"/>
                                                     </TextBlock>
                                                 </StackPanel>
-                                                <Border Grid.Column="2" Background="#FFE8F4FE" CornerRadius="4" Padding="8,3"
-                                                        VerticalAlignment="Center" Visibility="{Binding Id, Converter={StaticResource RecommendedFlagConv}}">
-                                                    <TextBlock Foreground="#FF1976D2" FontSize="10" FontWeight="Bold" Text="✓ 推荐"/>
+                                                <!-- "推荐"胶囊徽章 -->
+                                                <Border Grid.Column="2" Style="{StaticResource PillBadge}"
+                                                        Background="{StaticResource Primary-50}"
+                                                        Padding="10,4" VerticalAlignment="Center"
+                                                        Visibility="{Binding Id, Converter={StaticResource RecommendedFlagConv}}">
+                                                    <TextBlock Foreground="{StaticResource PrimaryBrush}"
+                                                               FontSize="10" FontWeight="Bold" Text="✓ 推荐"/>
                                                 </Border>
                                             </Grid>
                                         </Border>
                                         <ControlTemplate.Triggers>
                                             <Trigger Property="IsMouseOver" Value="True">
-                                                <Setter TargetName="Bd" Property="Background" Value="#FFEFF6FF"/>
+                                                <Setter TargetName="Bd" Property="Background" Value="{StaticResource Primary-50}"/>
+                                                <Setter TargetName="Bd" Property="BorderBrush" Value="{StaticResource Primary-100}"/>
                                             </Trigger>
                                             <Trigger Property="IsSelected" Value="True">
-                                                <Setter TargetName="Bd" Property="Background" Value="#FFDBEAFE"/>
-                                                <Setter TargetName="Bd" Property="BorderBrush" Value="#FF3B82F6"/>
+                                                <Setter TargetName="Bd" Property="Background" Value="{StaticResource Primary-50}"/>
+                                                <Setter TargetName="Bd" Property="BorderBrush" Value="{StaticResource PrimaryBrush}"/>
+                                                <Setter TargetName="Bd" Property="BorderThickness" Value="2"/>
                                             </Trigger>
                                         </ControlTemplate.Triggers>
                                     </ControlTemplate>
@@ -133,21 +145,19 @@
                         </Style>
                     </ListBox.ItemContainerStyle>
                     <ListBox.ItemTemplate>
-                        <DataTemplate>
-                            <Grid Height="0"/> <!-- 占位，使用ItemContainerStyle中的Template -->
-                        </DataTemplate>
+                        <DataTemplate><Grid Height="0"/></DataTemplate>
                     </ListBox.ItemTemplate>
                 </ListBox>
             </DockPanel>
         </Border>
 
-        <!-- 底部操作栏 -->
-        <StackPanel Grid.Row="2" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,16,0,0">
-            <Button Content="取消" Width="100" Height="36" Margin="4,0"
-                    Click="CancelButton_Click" Background="#FFE5E7EB" BorderThickness="0" Cursor="Hand"/>
-            <Button Content="✓ 确认下发" Width="120" Height="36" Margin="4,0" Background="#FF28A745" Foreground="White"
+        <!-- ========== 底部操作栏 ========== -->
+        <StackPanel Grid.Row="2" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,20,0,0">
+            <Button Content="取消" Style="{StaticResource ButtonGhost}" Width="110" Height="36"
+                    Click="CancelButton_Click" Margin="4,0"/>
+            <Button Content="✓ 确认下发" Style="{StaticResource ButtonPrimary}" Width="130" Height="36"
                     BorderThickness="0" FontWeight="Bold" Cursor="Hand"
-                    Click="ConfirmButton_Click" IsDefault="True"/>
+                    Click="ConfirmButton_Click" IsDefault="True" Margin="8,0"/>
         </StackPanel>
     </Grid>
 </Window>

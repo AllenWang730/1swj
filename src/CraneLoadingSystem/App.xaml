@@ -5,54 +5,16 @@
              DispatcherUnhandledException="App_DispatcherUnhandledException">
     <Application.Resources>
         <ResourceDictionary>
-            <!-- 全局应用样式（不依赖 MaterialDesign，使用原生 WPF 样式） -->
-            <Style TargetType="Button">
-                <Setter Property="FontFamily" Value="Segoe UI"/>
-                <Setter Property="Template">
-                    <Setter.Value>
-                        <ControlTemplate TargetType="Button">
-                            <Border x:Name="border"
-                                    Background="{TemplateBinding Background}"
-                                    BorderBrush="{TemplateBinding BorderBrush}"
-                                    BorderThickness="{TemplateBinding BorderThickness}"
-                                    CornerRadius="4"
-                                    Padding="{TemplateBinding Padding}">
-                                <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
-                            </Border>
-                            <ControlTemplate.Triggers>
-                                <Trigger Property="IsMouseOver" Value="True">
-                                    <Setter TargetName="border" Property="Opacity" Value="0.9"/>
-                                </Trigger>
-                                <Trigger Property="IsPressed" Value="True">
-                                    <Setter TargetName="border" Property="Opacity" Value="0.75"/>
-                                </Trigger>
-                                <Trigger Property="IsEnabled" Value="False">
-                                    <Setter TargetName="border" Property="Background" Value="#CCCCCC"/>
-                                    <Setter TargetName="border" Property="TextElement.Foreground" Value="#888888"/>
-                                </Trigger>
-                            </ControlTemplate.Triggers>
-                        </ControlTemplate>
-                    </Setter.Value>
-                </Setter>
-            </Style>
+            <ResourceDictionary.MergedDictionaries>
+                <!-- 现代化 UI 主题（所有颜色/圆角/阴影/控件默认样式都在这里） -->
+                <ResourceDictionary Source="Themes/Theme.xaml"/>
+            </ResourceDictionary.MergedDictionaries>
 
-            <Style TargetType="TextBox">
-                <Setter Property="BorderBrush" Value="#FFC0C4CC"/>
-                <Setter Property="BorderThickness" Value="1"/>
-                <Setter Property="Background" Value="White"/>
-                <Setter Property="Padding" Value="4,2"/>
-                <Setter Property="VerticalContentAlignment" Value="Center"/>
-            </Style>
+            <!-- Application-wide 全局字体：Segoe UI + 微软雅黑回退 -->
+            <FontFamily x:Key="GlobalFontFamily">Segoe UI, Microsoft YaHei UI, Microsoft YaHei, PingFang SC</FontFamily>
 
-            <Style TargetType="ProgressBar">
-                <Setter Property="Foreground" Value="#28A745"/>
-                <Setter Property="Background" Value="#E9ECEF"/>
-            </Style>
-
-            <!-- 全局字体 -->
-            <Style TargetType="TextBlock">
-                <Setter Property="FontFamily" Value="Segoe UI, Microsoft YaHei"/>
-            </Style>
+            <!-- 应用级默认字号（可被局部覆盖） -->
+            <sys:Double x:Key="GlobalFontSize" xmlns:sys="clr-namespace:System;assembly=mscorlib">13</sys:Double>
         </ResourceDictionary>
     </Application.Resources>
 </Application>
