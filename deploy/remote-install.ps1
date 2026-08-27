@@ -22,7 +22,7 @@
     powershell -NoProfile -ExecutionPolicy Bypass -File "$env:USERPROFILE\Desktop\run.ps1"
 #>
 param(
-    [string]$WorkDir = "$env:USERPROFILE\Desktop\1swj_run",
+    [string]$WorkDir = "",       # 为空时自动选（见下方 PickBaseDir）
     [string]$Repo    = "AllenWang730/1swj",
     [string]$Branch  = "master",
     [string]$Config  = "Release"
@@ -34,6 +34,33 @@ param(
     [Net.SecurityProtocolType]::Tls13
 [Console]::OutputEncoding = [System.Text.Encoding]::UTF8
 $ErrorActionPreference = "Stop"
+
+# ====== 容错定位工作目录（永远不会 Set-Location 到不存在的路径）======
+function PickBaseDir($arg){
+    # 1) 参数优先（父目录不存在则创建父目录，最后创建目标）
+    if($arg){
+        $parent = Split-Path $arg -Parent
+        if(-not $parent){ $parent = "." }
+        try { New-Item -ItemType Directory -Force -Path $parent -ErrorAction Stop | Out-Null } catch {}
+        try { New-Item -ItemType Directory -Force -Path $arg    -ErrorAction Stop | Out-Null } catch {}
+        if(Test-Path $arg){ return (Resolve-Path $arg).Path }
+    }
+    # 2) 当前 pwd 里有 .sln → 已在仓库根
+    if(Test-Path (Join-Path (Get-Location) "CraneLoadingSystem.sln")){ return (Get-Location).Path }
+    # 3) $PSScriptRoot（仅当脚本实际保存到文件且目录仍存在时）
+    if($PSScriptRoot -and (Test-Path $PSScriptRoot)){ return $PSScriptRoot }
+    # 4) 兜底：强制创建 Desktop\1swj_run（父目录都没有就退到 $env:USERPROFILE）
+    $fallback = Join-Path $env:USERPROFILE "Desktop\1swj_run"
+    try { New-Item -ItemType Directory -Force -Path $fallback -ErrorAction Stop | Out-Null }
+    catch {
+        $fallback = Join-Path $env:USERPROFILE "1swj_run"
+        New-Item -ItemType Directory -Force -Path $fallback -ErrorAction Stop | Out-Null
+    }
+    return (Resolve-Path $fallback).Path
+}
+$WorkDir = PickBaseDir $WorkDir
+Write-Host "  工作目录：$WorkDir" -ForegroundColor Gray
+Set-Location $WorkDir -ErrorAction Stop
 
 $Csproj  = "src\CraneLoadingSystem\CraneLoadingSystem.csproj"
 $ZipFile = Join-Path $WorkDir "_src.zip"
@@ -55,14 +82,17 @@ Write-Host ""
 
 # ====== [1/6] 清理旧工作目录 ======
 Write-Step "1/6 准备工作目录：$WorkDir"
-if (Test-Path $WorkDir) {
-    Write-Host "  ↳ 旧目录存在，安全清理（仅删 src/ 子目录，避免误删用户文件）..."
-    Remove-Item -Recurse -Force (Join-Path $WorkDir "src")  -ErrorAction SilentlyContinue
-    Remove-Item -Recurse -Force (Join-Path $WorkDir "docs") -ErrorAction SilentlyContinue
-    Remove-Item -Recurse -Force (Join-Path $WorkDir "*.sln") -ErrorAction SilentlyContinue
-    Remove-Item -Recurse -Force (Join-Path $WorkDir "*.md")  -ErrorAction SilentlyContinue
-    Remove-Item -Recurse -Force (Join-Path $WorkDir "_src.zip") -ErrorAction SilentlyContinue
-    Remove-Item -Recurse -Force (Get-ChildItem -Directory $WorkDir | Where-Object { $_.Name -like "1swj-*" } | Select-Object -ExpandProperty FullName) -ErrorAction SilentlyContinue
+Write-Host "  ↳ 安全清理（仅删 src/ 子目录 + .sln/.md/_src.zip，避免误删用户文件）..."
+Remove-Item -Recurse -Force (Join-Path $WorkDir "src")  -ErrorAction SilentlyContinue
+Remove-Item -Recurse -Force (Join-Path $WorkDir "docs") -ErrorAction SilentlyContinue
+Remove-Item -Recurse -Force (Join-Path $WorkDir "deploy") -ErrorAction SilentlyContinue
+Remove-Item -Force (Join-Path $WorkDir "*.sln") -ErrorAction SilentlyContinue
+Remove-Item -Force (Join-Path $WorkDir "*.md")  -ErrorAction SilentlyContinue
+Remove-Item -Force (Join-Path $WorkDir "*.ps1") -ErrorAction SilentlyContinue
+Remove-Item -Force (Join-Path $WorkDir "*.bat") -ErrorAction SilentlyContinue
+Remove-Item -Force (Join-Path $WorkDir "_src.zip") -ErrorAction SilentlyContinue
+Get-ChildItem -Directory $WorkDir -ErrorAction SilentlyContinue | Where-Object { $_.Name -like "1swj-*" } | ForEach-Object {
+    Remove-Item -Recurse -Force $_.FullName -ErrorAction SilentlyContinue
 }
 New-Item -ItemType Directory -Force -Path $WorkDir | Out-Null
 Set-Location $WorkDir

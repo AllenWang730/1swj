@@ -31,7 +31,7 @@
     .\拉取并运行.ps1 -NoBuild
 #>
 param(
-    [string]$WorkDir  = "$env:USERPROFILE\Desktop\1swj",
+    [string]$WorkDir  = "",         # 为空时自动选（见下方 PickBaseDir）
     [string]$Repo     = "AllenWang730/1swj",
     [string]$Branch   = "master",
     [switch]$NoBuild  = $false,
@@ -44,6 +44,34 @@ param(
 [Console]::OutputEncoding = [System.Text.Encoding]::UTF8
 $ErrorActionPreference = "Stop"
 $ProgressPreference = "SilentlyContinue"   # 下载提速 10x+
+
+# ====== 容错定位工作目录（永远不会 Set-Location 到不存在的路径）======
+function PickBaseDir($arg){
+    if($arg){
+        $parent = Split-Path $arg -Parent
+        if(-not $parent){ $parent = "." }
+        try { New-Item -ItemType Directory -Force -Path $parent -ErrorAction Stop | Out-Null } catch {}
+        try { New-Item -ItemType Directory -Force -Path $arg    -ErrorAction Stop | Out-Null } catch {}
+        if(Test-Path $arg){ return (Resolve-Path $arg).Path }
+    }
+    if(Test-Path (Join-Path (Get-Location) "CraneLoadingSystem.sln")){ return (Get-Location).Path }
+    if($PSScriptRoot -and (Test-Path $PSScriptRoot)){
+        # 如果脚本本身放在 repo 根的 deploy/ 下，则跳到 repo 根
+        $cand = Resolve-Path (Join-Path $PSScriptRoot "..") -ErrorAction SilentlyContinue
+        if($cand -and (Test-Path (Join-Path $cand.Path "CraneLoadingSystem.sln"))){ return $cand.Path }
+        return $PSScriptRoot
+    }
+    $fallback = Join-Path $env:USERPROFILE "Desktop\1swj"
+    try { New-Item -ItemType Directory -Force -Path $fallback -ErrorAction Stop | Out-Null }
+    catch {
+        $fallback = Join-Path $env:USERPROFILE "1swj"
+        New-Item -ItemType Directory -Force -Path $fallback -ErrorAction Stop | Out-Null
+    }
+    return (Resolve-Path $fallback).Path
+}
+$WorkDir = PickBaseDir $WorkDir
+Write-Host "  工作目录：$WorkDir" -ForegroundColor Gray
+Set-Location $WorkDir -ErrorAction Stop
 
 $RepoUrl   = "https://github.com/$Repo.git"
 $ZipUrls   = @(
