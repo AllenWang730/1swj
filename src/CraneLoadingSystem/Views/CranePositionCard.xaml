@@ -345,36 +345,44 @@
                 </Grid>
             </GroupBox>
 
-            <!-- 缺失提示文本 -->
-            <TextBlock Grid.Row="7" FontSize="10" Foreground="#FFDC3545" Margin="0,0,0,4"
+            <!-- 缺失提示文本（启动前联锁未满足时显示）
+                 与下面的报警 Border 保持间距：下 Margin=8 -->
+            <TextBlock Grid.Row="7" FontSize="11" Foreground="#FFDC3545" Margin="0,2,0,8"
+                       TextWrapping="Wrap" LineStackingStrategy="BlockLineHeight" LineHeight="18"
                        Text="{Binding MissingInterlockNames, FallbackValue=''}"
                        Visibility="{Binding AllInterlocksSatisfied, Converter={StaticResource BoolToVisConv}, ConverterParameter=Invert, FallbackValue=Collapsed}"/>
 
             <!-- ★ 报警信息文本（急停/联锁破坏/启动拒绝等）
-                 Bug fix: 原本与"缺失提示 TextBlock"同占 Grid.Row=7，两者叠加导致报警条
-                 无法展开。现已单独占 Grid.Row=8，让 Border 可按内容自适应高度。 -->
-            <Border Grid.Row="8" Margin="0,4,0,4" CornerRadius="4" Padding="6,4"
+                 - 单独占 Row=8，避免与缺失提示/控制按钮重叠
+                 - 外边距上下 8px + 内边距上下 7px：文字不会顶到边框
+                 - TextBlock 显式行高 LineHeight=20：多行报警不会字体重叠
+                 - MinHeight=36：即使报警文本很短，卡片视觉也稳定 -->
+            <Border Grid.Row="8" Margin="0,8,0,10" CornerRadius="4" Padding="9,7"
                      Background="#FFFEF2F2" BorderBrush="#FFFECACA" BorderThickness="1">
                 <Border.Style>
                     <Style TargetType="Border">
                         <Setter Property="Visibility" Value="Visible"/>
+                        <Setter Property="MinHeight" Value="36"/>
                         <Style.Triggers>
                             <DataTrigger Binding="{Binding AlarmMessage}" Value="{x:Null}">
                                 <Setter Property="Visibility" Value="Collapsed"/>
+                                <Setter Property="MinHeight" Value="0"/>
                             </DataTrigger>
                             <DataTrigger Binding="{Binding AlarmMessage}" Value="">
                                 <Setter Property="Visibility" Value="Collapsed"/>
+                                <Setter Property="MinHeight" Value="0"/>
                             </DataTrigger>
                         </Style.Triggers>
                     </Style>
                 </Border.Style>
-                <TextBlock FontSize="11" FontWeight="SemiBold" TextWrapping="Wrap"
-                           Foreground="#FFDC2626"
+                <TextBlock FontSize="12" FontWeight="SemiBold" TextWrapping="Wrap"
+                           LineStackingStrategy="BlockLineHeight" LineHeight="20"
+                           Foreground="#FFDC2626" VerticalAlignment="Center"
                            Text="{Binding AlarmMessage, FallbackValue=''}"/>
             </Border>
 
-            <!-- 控制按钮 -->
-            <GroupBox Grid.Row="9" Header="控制操作" FontSize="11" Padding="6,4" BorderBrush="#FFDDDDDD">
+            <!-- 控制按钮：与上面报警 Border 保持 10px 下边距，GroupBox 上 Padding 调大 -->
+            <GroupBox Grid.Row="9" Header="控制操作" FontSize="11" Padding="6,8,6,4" BorderBrush="#FFDDDDDD">
                 <Grid>
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="*"/>
