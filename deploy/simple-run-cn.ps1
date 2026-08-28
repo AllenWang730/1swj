@@ -29,19 +29,13 @@ $ProgressPreference    = "SilentlyContinue"
 # ============================================================
 # CN MIRROR TABLE — (fastest mirrors first, official last)
 # ============================================================
-# 1) Zip (repo archive) mirrors — CN users usually hit these FIRST
+# 1) Zip (repo archive) — official GitHub only
 $ZIP_MIRRORS = @(
-    "https://ghproxy.com/https://github.com/$Repo/archive/refs/heads/$Branch.zip",
-    "https://mirror.ghproxy.com/https://github.com/$Repo/archive/refs/heads/$Branch.zip",
-    "https://gh-proxy.com/https://github.com/$Repo/archive/refs/heads/$Branch.zip",
     "https://codeload.github.com/$Repo/zip/refs/heads/$Branch",
     "https://github.com/$Repo/archive/refs/heads/$Branch.zip"
 )
-# 2) Git clone mirrors (only used when ZIP fails AND git is installed)
+# 2) Git clone — official GitHub only
 $GIT_MIRRORS = @(
-    "https://ghproxy.com/https://github.com/$Repo.git",
-    "https://mirror.ghproxy.com/https://github.com/$Repo.git",
-    "https://kkgithub.com/$Repo.git",
     "https://github.com/$Repo.git"
 )
 
@@ -123,16 +117,16 @@ if($hasGit -and (Test-Path ".git")){
         if($LASTEXITCODE -ne 0){ F "git checkout $Branch failed" }
     }
 
-    # Ensure there is a fetchable remote (try multiple URLs if fetch fails)
+    # Ensure there is a fetchable remote
     $fetched = $false
     $origUrl = git remote get-url origin 2>$null
     foreach($url in @($origUrl) + $GIT_MIRRORS){
         if(-not $url){ continue }
         Write-Host "  fetch via: $url" -ForegroundColor DarkGray
-        try { git -c http.sslVerify=false fetch origin $Branch --prune --update-shallow 2>$null } catch {}
+        try { git fetch origin $Branch --prune --update-shallow 2>$null } catch {}
         if($LASTEXITCODE -eq 0){ $fetched = $true ; break }
         # Also attempt: override URL for one fetch
-        try { git -c "http.sslVerify=false" -c "url.$url.insteadof=$origUrl" fetch origin $Branch --prune 2>$null } catch {}
+        try { git -c "url.$url.insteadof=$origUrl" fetch origin $Branch --prune 2>$null } catch {}
         if($LASTEXITCODE -eq 0){ $fetched = $true ; break }
     }
     if($fetched){
@@ -193,7 +187,7 @@ if(-not $pullMode){
         foreach($u in $GIT_MIRRORS){
             Write-Host "  -> clone: $u"
             try {
-                git -c http.sslVerify=false clone --depth 1 -b $Branch $u $WorkDir 2>$null
+                git clone --depth 1 -b $Branch $u $WorkDir 2>$null
             } catch {}
             if($LASTEXITCODE -eq 0 -and (Test-Path (Join-Path $WorkDir $CSPROJ))){
                 $pullMode = "git-clone"; break
