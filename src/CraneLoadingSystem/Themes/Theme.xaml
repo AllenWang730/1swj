@@ -268,7 +268,7 @@
                         <ScrollViewer x:Name="PART_ContentHost" VerticalAlignment="{TemplateBinding VerticalContentAlignment}"
                                       Focusable="False"/>
                     </Border>
-                    <ControlTemplate.Triggers">
+                    <ControlTemplate.Triggers>
                         <Trigger Property="IsFocused" Value="True">
                             <Setter TargetName="Bd" Property="BorderBrush" Value="{StaticResource PrimaryBrush}"/>
                             <!-- 聚焦 Primary 柔光外发光（整值赋 Effect，避免 MC4111） -->
