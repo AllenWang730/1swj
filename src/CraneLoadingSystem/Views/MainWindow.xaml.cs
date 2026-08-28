@@ -87,9 +87,9 @@ public partial class MainWindow : Window
 
             // 1. 初始化鹤位管理器
             await _vm.CraneManager.InitializeAsync();
-            PlcConnEllipse.Fill = new SolidColorBrush(Color.FromRgb(0x28, 0xA7, 0x45));
+            PlcConnEllipse.Fill = (SolidColorBrush)FindResource("SuccessBrush");
             PlcConnText.Text = "PLC 已连接";
-            PlcConnText.Foreground = new SolidColorBrush(Color.FromRgb(0x34, 0xD3, 0x99));
+            PlcConnText.Foreground = (SolidColorBrush)FindResource("SuccessForegroundBrush");
 
             // 自动订阅鹤位完成通知 -> 触发订单完成回传
             if (_vm.CraneManager is CraneManagerService cm)
@@ -160,9 +160,11 @@ public partial class MainWindow : Window
     /// <summary>更新 SAP/ERP 连接状态灯（全绿/部分橙/全红）</summary>
     private void UpdateSapStatus(bool sapOk, bool erpOk)
     {
-        var color = sapOk && erpOk ? Colors.LimeGreen : (sapOk || erpOk ? Colors.Orange : Colors.Red);
+        // P1 fix: 使用 Theme 语义色令牌替代硬编码 Colors.xxx
+        var brushKey = sapOk && erpOk ? "SuccessBrush"
+                     : (sapOk || erpOk ? "WarningBrush" : "DangerBrush");
         var msg = (sapOk ? "SAP✓ " : "SAP✗ ") + (erpOk ? "ERP✓" : "ERP✗");
-        SapConnEllipse.Fill = new SolidColorBrush(color);
+        SapConnEllipse.Fill = (SolidColorBrush)FindResource(brushKey);
         SapConnText.Text = msg;
     }
 
@@ -180,7 +182,7 @@ public partial class MainWindow : Window
             {
                 Text = "⚠ 未加载到任何鹤位数据，请检查配置文件和 PLC 连接",
                 FontSize = 16,
-                Foreground = Brushes.Red,
+                Foreground = (SolidColorBrush)FindResource("DangerBrush"),
                 Margin = new Thickness(20),
                 HorizontalAlignment = HorizontalAlignment.Center,
                 VerticalAlignment = VerticalAlignment.Center
@@ -200,8 +202,8 @@ public partial class MainWindow : Window
                 Padding = new Thickness(14, 6, 14, 6),
                 FontSize = 13,
                 FontWeight = FontWeights.SemiBold,
-                Background = Brushes.White,
-                BorderBrush = Brushes.LightGray,
+                Background = (SolidColorBrush)FindResource("CardBackgroundBrush"),
+                BorderBrush = (SolidColorBrush)FindResource("Gray3Brush"),
                 BorderThickness = new Thickness(1),
                 Cursor = Cursors.Hand,
                 IsChecked = true
@@ -251,12 +253,12 @@ public partial class MainWindow : Window
             var border = child.Content as Border;
             if (child.Tag?.ToString() == craneId)
             {
-                if (border != null) border.BorderBrush = Brushes.DodgerBlue;
+                if (border != null) border.BorderBrush = (SolidColorBrush)FindResource("PrimaryBrush");
                 child.BringIntoView();
             }
             else
             {
-                if (border != null) border.BorderBrush = new SolidColorBrush(Color.FromRgb(0xE0, 0xE0, 0xE0));
+                if (border != null) border.BorderBrush = (SolidColorBrush)FindResource("Gray3Brush");
             }
         }
     }

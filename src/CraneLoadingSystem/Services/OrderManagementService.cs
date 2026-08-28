@@ -145,20 +145,34 @@ public partial class OrderManagementService : ObservableObject, IOrderManagement
     {
         try
         {
+            LoadingOrder? orderToCancel = null;
             lock (_lockObj)
             {
-                var order = ActiveOrders.FirstOrDefault(o => o.OrderNo == orderNo);
-                if (order == null) return false;
-                ActiveOrders.Remove(order);
-                if (!string.IsNullOrEmpty(order.AssignedCraneId))
+                orderToCancel = ActiveOrders.FirstOrDefault(o => o.OrderNo == orderNo);
+                if (orderToCancel == null) return false;
+                ActiveOrders.Remove(orderToCancel);
+                if (!string.IsNullOrEmpty(orderToCancel.AssignedCraneId))
                 {
-                    var crane = _craneManager.GetCrane(order.AssignedCraneId);
+                    var crane = _craneManager.GetCrane(orderToCancel.AssignedCraneId);
                     crane?.ResetCrane();
                 }
-                order.Status = OrderStatus.Cancelled;
-                CompletedOrders.Insert(0, order);
+                orderToCancel.Status = OrderStatus.Cancelled;
+                CompletedOrders.Insert(0, orderToCancel);
             }
-            await Task.CompletedTask;
+
+            // P2 fix: 取消单据后回传 SAP/ERP（原代码遗漏，导致 SAP 侧仍显示 Dispatched 状态，账实不符）
+            try
+            {
+                if (orderToCancel.Source == OrderSource.Sap)
+                    await _sapService.ReportExceptionAsync(orderToCancel.OrderNo, "CANCELLED", "单据取消");
+                else if (orderToCancel.Source == OrderSource.Erp)
+                    await _erpService.ReportExceptionAsync(orderToCancel.OrderNo, "CANCELLED", "单据取消");
+            }
+            catch (Exception exSap)
+            {
+                Log.Warning(exSap, "[OrderMgr] 取消单据 {OrderNo} 回传 SAP/ERP 失败（非致命）", orderNo);
+            }
+
             return true;
         }
         catch (Exception ex)

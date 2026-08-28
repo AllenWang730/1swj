@@ -79,10 +79,13 @@
     <SolidColorBrush x:Key="PrimaryBrush"      Color="{StaticResource Primary-600}"/>
     <SolidColorBrush x:Key="PrimaryLightBrush" Color="{StaticResource Primary-500}"/>
     <SolidColorBrush x:Key="SuccessBrush"      Color="{StaticResource Success-500}"/>
+    <SolidColorBrush x:Key="SuccessForegroundBrush" Color="{StaticResource Success-400}"/>
     <SolidColorBrush x:Key="WarningBrush"      Color="{StaticResource Warning-500}"/>
     <SolidColorBrush x:Key="DangerBrush"       Color="{StaticResource Danger-500}"/>
     <SolidColorBrush x:Key="DangerDarkBrush"   Color="{StaticResource Danger-700}"/>
     <SolidColorBrush x:Key="InfoBrush"         Color="{StaticResource Info-500}"/>
+    <SolidColorBrush x:Key="Gray3Brush"        Color="{StaticResource Gray-300}"/>
+    <SolidColorBrush x:Key="CardBackgroundBrush" Color="{StaticResource Gray-50}"/>
 
     <!-- 卡片阴影（用 DropShadowEffect 模拟） -->
     <DropShadowEffect x:Key="ShadowCardSm" Color="#FF000000" BlurRadius="4"  ShadowDepth="0" Opacity="0.06"/>

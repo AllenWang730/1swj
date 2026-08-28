@@ -160,8 +160,11 @@ public class PlcControlService : IPlcControlService
         try
         {
             Log.Information("[PlcService] 远程暂停鹤位 {CraneId}", craneId);
-            if (_craneStatus[craneId] == CraneStatus.Loading)
-                _craneStatus[craneId] = CraneStatus.Paused;
+            // P0 fix: 使用 AddOrUpdate 保证原子性（原 read-check-write 在并发下可能被覆盖）
+            var updated = _craneStatus.AddOrUpdate(
+                craneId,
+                _ => CraneStatus.Paused,       // key 不存在时 → Paused
+                (_, cur) => cur == CraneStatus.Loading ? CraneStatus.Paused : cur);
             if (_simulationIo.TryGetValue(craneId, out var io))
                 io.IsPumpRunning = false;
             return Task.FromResult(true);
@@ -178,8 +181,11 @@ public class PlcControlService : IPlcControlService
         try
         {
             Log.Information("[PlcService] 远程恢复鹤位 {CraneId}", craneId);
-            if (_craneStatus[craneId] == CraneStatus.Paused)
-                _craneStatus[craneId] = CraneStatus.Loading;
+            // P0 fix: 原子操作
+            _craneStatus.AddOrUpdate(
+                craneId,
+                _ => CraneStatus.Loading,
+                (_, cur) => cur == CraneStatus.Paused ? CraneStatus.Loading : cur);
             if (_simulationIo.TryGetValue(craneId, out var io))
                 io.IsPumpRunning = true;
             return Task.FromResult(true);
@@ -317,8 +323,16 @@ public class PlcControlService : IPlcControlService
             {
                 var craneCfg = _config.CranePositions.FirstOrDefault(c => c.Id == craneId);
                 var flowRate = craneCfg?.MaxFlowRate ?? 200; // L/min
-                var density = 750; // kg/m³ -> 0.75 kg/L
-                double kgPerTick = (flowRate / 60.0) * (_config.AppSettings.DataRefreshIntervalMs / 1000.0) * 0.75;
+                // P1 fix: 根据产品名称查密度表（原硬编码 750 导致柴油等密度偏差 >10%）
+                var density = order.ProductCode switch
+                {
+                    "P001" or "92#" or "92#车用汽油" or "汽油" => 745,
+                    "P002" or "95#" or "95#车用汽油" => 752,
+                    "P003" or "0#" or "0#车用柴油" or "柴油" => 840,
+                    "P004" or "LPG" or "液化气" => 580,
+                    _ => 750  // 默认值
+                };
+                double kgPerTick = (flowRate / 60.0) * (_config.AppSettings.DataRefreshIntervalMs / 1000.0) * (density / 1000.0);
                 kgPerTick *= 0.95 + Random.Shared.NextDouble() * 0.1; // 随机误差
 
                 data.InstantFlow = flowRate * (0.9 + Random.Shared.NextDouble() * 0.2);
@@ -332,7 +346,7 @@ public class PlcControlService : IPlcControlService
                 data.Density = density;
                 data.ElapsedSeconds += _config.AppSettings.DataRefreshIntervalMs / 1000;
                 data.EstimatedRemainingSeconds = data.InstantFlow > 0
-                    ? (int)(data.RemainingWeight / (data.InstantFlow * 0.75 / 60.0))
+                    ? (int)(data.RemainingWeight / (data.InstantFlow * (density / 1000.0) / 60.0))
                     : 0;
                 data.EstimatedRemainingSeconds = Math.Max(0, data.EstimatedRemainingSeconds);
                 data.LastUpdateTime = DateTime.Now;

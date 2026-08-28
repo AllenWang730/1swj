@@ -1,4 +1,5 @@
 using System.Collections.ObjectModel;
+using System.Windows;
 using CraneLoadingSystem.Models;
 using Serilog;
 
@@ -69,7 +70,8 @@ public class AlarmManagerService : IAlarmManagerService
                 Detail = detail,
                 Acknowledged = false
             };
-            Alarms.Insert(0, rec); // 最新置顶
+            // P1 fix: ObservableCollection 绑定到 UI，跨线程修改会抛 InvalidOperationException
+            Application.Current?.Dispatcher.Invoke(() => Alarms.Insert(0, rec));
         }
 
         // 持久化到 SQLite 数据库
@@ -133,10 +135,14 @@ public class AlarmManagerService : IAlarmManagerService
 
     private void TrimAlarms()
     {
-        lock (_lock)
+        // P1 fix: 与 Alarms.Insert 同步，跨线程 RemoveAt 也会抛异常
+        Application.Current?.Dispatcher.Invoke(() =>
         {
-            while (Alarms.Count > 500)
-                Alarms.RemoveAt(Alarms.Count - 1);
-        }
+            lock (_lock)
+            {
+                while (Alarms.Count > 500)
+                    Alarms.RemoveAt(Alarms.Count - 1);
+            }
+        });
     }
 }

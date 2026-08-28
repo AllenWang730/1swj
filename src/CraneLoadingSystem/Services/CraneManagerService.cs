@@ -1,4 +1,5 @@
 using System.Collections.ObjectModel;
+using System.Windows;
 using System.Windows.Threading;
 using CraneLoadingSystem.Models;
 using Microsoft.Extensions.Options;
@@ -16,7 +17,7 @@ public class CraneManagerService : ICraneManagerService
     private readonly ISafetyInterlockService _safety;
     private readonly IAlarmManagerService _alarm;
     private readonly DispatcherTimer _refreshTimer;
-    private readonly object _lock = new();
+    private readonly SemaphoreSlim _lock = new(1, 1);
 
     public ObservableCollection<CranePosition> Cranes { get; } = new();
 
@@ -69,10 +70,15 @@ public class CraneManagerService : ICraneManagerService
 
     private async void RefreshTimer_Tick(object? sender, EventArgs e)
     {
+        // P0 fix: 用 SemaphoreSlim 保护整个刷新循环，防止与 OnInterlockBreached / EmergencyStopAsync 并发
+        await _lock.WaitAsync();
         try
         {
             foreach (var crane in Cranes)
             {
+                // P0 fix: 捕获局部引用，防止在 await 期间 CurrentOrder 被 NotifyOrderAbortedAsync 清空导致 NRE
+                var order = crane.CurrentOrder;
+
                 // 读取实时数据
                 var data = await _plc.ReadRealtimeDataAsync(crane.Id);
                 if (data != null)
@@ -100,7 +106,7 @@ public class CraneManagerService : ICraneManagerService
 
                     // 自动同步激活的单据
                     var active = realPlc.GetActiveOrder(crane.Id);
-                    if (active != null && crane.CurrentOrder == null)
+                    if (active != null && order == null)
                         crane.CurrentOrder = active;
                 }
 
@@ -113,16 +119,15 @@ public class CraneManagerService : ICraneManagerService
                     _ = await _safety.MonitorRuntimeAsync(crane);
                 }
 
-                // 检测状态变更 -> 完成处理
-                if (crane.Status == CraneStatus.Completed && crane.CurrentOrder != null
-                    && crane.CurrentOrder.Status != OrderStatus.Completed)
+                // 检测状态变更 -> 完成处理（P0 fix: 使用局部 order 引用避免竞态 NRE）
+                if (crane.Status == CraneStatus.Completed && order != null
+                    && order.Status != OrderStatus.Completed)
                 {
-                    // 通过WeakReferenceMessenger或DI回调; 我们用简单事件 - 实际可通过Messenger解耦
                     OnCraneCompleted?.Invoke(this, new CraneCompletedArgs
                     {
                         CraneId = crane.Id,
                         ActualWeight = crane.RealtimeData.LoadedWeight,
-                        StartTime = crane.CurrentOrder.DispatchTime ?? DateTime.Now,
+                        StartTime = order.DispatchTime ?? DateTime.Now,
                         EndTime = DateTime.Now
                     });
                 }
@@ -131,6 +136,10 @@ public class CraneManagerService : ICraneManagerService
         catch (Exception ex)
         {
             Log.Error(ex, "[CraneMgr] 刷新数据异常");
+        }
+        finally
+        {
+            _lock.Release();
         }
     }
 
@@ -148,6 +157,14 @@ public class CraneManagerService : ICraneManagerService
         if (crane?.CurrentOrder == null)
         {
             Log.Warning("[CraneMgr] 启动失败：鹤位 {Id} 未分配单据", craneId);
+            return false;
+        }
+
+        // P1 fix: 现场模式禁用远程指令（PRD 安全要求）
+        if (!crane.IsRemoteMode)
+        {
+            Log.Warning("[CraneMgr] 启动拒绝：鹤位 {Id} 处于现场模式，远程指令被禁用", craneId);
+            crane.AlarmMessage = "现场模式：远程启动被禁用";
             return false;
         }
 
@@ -183,6 +200,11 @@ public class CraneManagerService : ICraneManagerService
     public async Task<bool> RemoteStopAsync(string craneId)
     {
         var crane = GetCrane(craneId);
+        if (crane != null && !crane.IsRemoteMode)
+        {
+            Log.Warning("[CraneMgr] 停止拒绝：鹤位 {Id} 处于现场模式", craneId);
+            return false;
+        }
         var ok = await _plc.RemoteStopAsync(craneId);
         if (ok && crane != null)
         {
@@ -194,6 +216,11 @@ public class CraneManagerService : ICraneManagerService
     public async Task<bool> RemotePauseAsync(string craneId)
     {
         var crane = GetCrane(craneId);
+        if (crane != null && !crane.IsRemoteMode)
+        {
+            Log.Warning("[CraneMgr] 暂停拒绝：鹤位 {Id} 处于现场模式", craneId);
+            return false;
+        }
         var ok = await _plc.RemotePauseAsync(craneId);
         // ★ 同步 UI 状态：暂停后立即反映到卡片，否则用户感知"按钮没反应"
         if (ok && crane != null && crane.Status == CraneStatus.Loading)
@@ -205,6 +232,13 @@ public class CraneManagerService : ICraneManagerService
     {
         var crane = GetCrane(craneId);
         if (crane == null) return false;
+
+        // P1 fix: 现场模式禁用远程恢复
+        if (!crane.IsRemoteMode)
+        {
+            Log.Warning("[CraneMgr] 恢复拒绝：鹤位 {Id} 处于现场模式", craneId);
+            return false;
+        }
 
         // ★ Bug fix: 恢复装料等同启动，必须重新全检8项安全联锁
         // （暂停期间现场可能拆卸了静电夹/阻车器，恢复时未重新校验是安全漏洞）
@@ -229,37 +263,41 @@ public class CraneManagerService : ICraneManagerService
     public async Task<bool> EmergencyStopAsync(string craneId)
     {
         var crane = GetCrane(craneId);
-        var ok = await _plc.EmergencyStopAsync(craneId);
-        // ★ Bug fix: 必须立即同步 UI 状态。否则 crane.Status 仍是 Loading，
-        // 用户感知"急停按钮没生效"；复位按钮的 IsEnabled 触发器也不匹配 EmergencyStop 而无法点击
-        if (ok && crane != null)
+        // P0 fix: 加锁防止与 RefreshTimer_Tick 并发修改 crane 状态
+        await _lock.WaitAsync();
+        try
         {
-            crane.Status = CraneStatus.EmergencyStop;
-            crane.IsEmergencyStop = true;
-            crane.AlarmMessage = "🚨 紧急停止已触发，请现场复位后重新全检8项联锁";
-
-            // ★ Bug fix: 手动急停也要触发异常回传事件。
-            //   之前只有 OnInterlockBreached（自动联锁破坏急停）会触发 OnCraneCompleted(IsAborted=true)，
-            //   手动急停按钮 / 全局急停 走本方法，订单仍保持 InProgress，已装部分量永远不回传 SAP/ERP。
-            //   实际生产中手动急停是常态（现场发现异常→按急停），账实影响严重。
-            //   仅对 InProgress 订单触发（Dispatched/Ready 状态下未装料，无需回传部分量）。
-            //   捕获 order 局部引用，避免全局急停 Task.WhenAll 并发场景下
-            //   crane.CurrentOrder 在两次访问间被 NotifyOrderAbortedAsync 异步清空导致 NRE。
-            var order = crane.CurrentOrder;
-            if (order != null && order.Status == OrderStatus.InProgress)
+            var ok = await _plc.EmergencyStopAsync(craneId);
+            // ★ Bug fix: 必须立即同步 UI 状态。否则 crane.Status 仍是 Loading，
+            // 用户感知"急停按钮没生效"；复位按钮的 IsEnabled 触发器也不匹配 EmergencyStop 而无法点击
+            if (ok && crane != null)
             {
-                OnCraneCompleted?.Invoke(this, new CraneCompletedArgs
+                crane.Status = CraneStatus.EmergencyStop;
+                crane.IsEmergencyStop = true;
+                crane.AlarmMessage = "🚨 紧急停止已触发，请现场复位后重新全检8项联锁";
+
+                // ★ Bug fix: 手动急停也要触发异常回传事件。
+                //   仅对 InProgress 订单触发（Dispatched/Ready 状态下未装料，无需回传部分量）。
+                var order = crane.CurrentOrder;
+                if (order != null && order.Status == OrderStatus.InProgress)
                 {
-                    CraneId = craneId,
-                    ActualWeight = crane.RealtimeData.LoadedWeight,
-                    StartTime = order.DispatchTime ?? DateTime.Now,
-                    EndTime = DateTime.Now,
-                    IsAborted = true,
-                    AbortReason = "手动急停"
-                });
+                    OnCraneCompleted?.Invoke(this, new CraneCompletedArgs
+                    {
+                        CraneId = craneId,
+                        ActualWeight = crane.RealtimeData.LoadedWeight,
+                        StartTime = order.DispatchTime ?? DateTime.Now,
+                        EndTime = DateTime.Now,
+                        IsAborted = true,
+                        AbortReason = "手动急停"
+                    });
+                }
             }
+            return ok;
         }
-        return ok;
+        finally
+        {
+            _lock.Release();
+        }
     }
 
     public async Task<bool> EmergencyResetAsync(string craneId)
@@ -302,33 +340,38 @@ public class CraneManagerService : ICraneManagerService
     {
         Log.Warning("[CraneMgr] ===== 全局强制复位触发（共 {Count} 个鹤位）=====", Cranes.Count);
 
-        int successCount = 0;
-        var tasks = Cranes.Select(async crane =>
+        // P0 fix: 加锁防止与 RefreshTimer_Tick 并发
+        await _lock.WaitAsync();
+        try
         {
-            try
+            int successCount = 0;
+            // 逐个处理而非 Task.WhenAll，避免多鹤位并发修改 + OnCraneCompleted 并发触发
+            foreach (var crane in Cranes)
             {
-                // 1. 如果有 InProgress 订单，先触发异常中断回传（避免数据丢失账实不符）
-                var order = crane.CurrentOrder;
-                if (order != null && order.Status == OrderStatus.InProgress)
+                try
                 {
-                    Log.Information("[CraneMgr] 全局复位：鹤位 {Id} 有 InProgress 单据 {OrderNo}，触发异常回传（已装 {Weight:F2}kg）",
-                        crane.Id, order.OrderNo, crane.RealtimeData.LoadedWeight);
-                    OnCraneCompleted?.Invoke(this, new CraneCompletedArgs
+                    // 1. 如果有 InProgress 订单，先触发异常中断回传（避免数据丢失账实不符）
+                    var order = crane.CurrentOrder;
+                    if (order != null && order.Status == OrderStatus.InProgress)
                     {
-                        CraneId = crane.Id,
-                        ActualWeight = crane.RealtimeData.LoadedWeight,
-                        StartTime = order.DispatchTime ?? DateTime.Now,
-                        EndTime = DateTime.Now,
-                        IsAborted = true,
-                        AbortReason = "全局强制复位"
-                    });
-                }
+                        Log.Information("[CraneMgr] 全局复位：鹤位 {Id} 有 InProgress 单据 {OrderNo}，触发异常回传（已装 {Weight:F2}kg）",
+                            crane.Id, order.OrderNo, crane.RealtimeData.LoadedWeight);
+                        OnCraneCompleted?.Invoke(this, new CraneCompletedArgs
+                        {
+                            CraneId = crane.Id,
+                            ActualWeight = crane.RealtimeData.LoadedWeight,
+                            StartTime = order.DispatchTime ?? DateTime.Now,
+                            EndTime = DateTime.Now,
+                            IsAborted = true,
+                            AbortReason = "全局强制复位"
+                        });
+                    }
 
-                // 2. PLC 侧清急停 DI 信号（不校验联锁，强制路径）
-                await _plc.EmergencyResetAsync(crane.Id);
+                    // 2. PLC 侧清急停 DI 信号（不校验联锁，强制路径）
+                    await _plc.EmergencyResetAsync(crane.Id);
 
-                // 3. 清零所有鹤位信息（实时数据/报警/订单引用/联锁状态/状态→Idle）
-                crane.ResetCrane();
+                    // 3. 清零所有鹤位信息（实时数据/报警/订单引用/联锁状态/状态→Idle）
+                    crane.ResetCrane();
 
                 // 4. 显式设回 Idle（ResetCrane 已设，但显式表达意图，并触发 UI 刷新）
                 crane.Status = CraneStatus.Idle;
@@ -345,12 +388,16 @@ public class CraneManagerService : ICraneManagerService
                 Log.Error(ex, "[CraneMgr] 全局复位：鹤位 {Id} 异常", crane.Id);
                 crane.AlarmMessage = $"复位异常：{ex.Message}";
             }
-        });
-        await Task.WhenAll(tasks);
+        }
 
-        Log.Information("[CraneMgr] 全局复位完成：成功 {Success}/{Total}",
-            successCount, Cranes.Count);
-        return successCount == Cranes.Count;
+            Log.Information("[CraneMgr] 全局复位完成：成功 {Success}/{Total}",
+                successCount, Cranes.Count);
+            return successCount == Cranes.Count;
+        }
+        finally
+        {
+            _lock.Release();
+        }
     }
 
     public IEnumerable<CranePosition> GetAvailableCranesForProduct(string productCode)
@@ -366,6 +413,8 @@ public class CraneManagerService : ICraneManagerService
 
     /// <summary>
     /// 联锁破坏事件处理：自动急停 + 报警 + 异常回传
+    /// P0 fix: 本方法可能从 ThreadPool 线程（MonitorRuntimeAsync 内的 RaiseBreach）调用，
+    ///   对 crane.Status / crane.AlarmMessage 等 UI 绑定属性的修改必须切回 UI 线程。
     /// </summary>
     private async void OnInterlockBreached(object? sender, InterlockBreachEventArgs e)
     {
@@ -377,11 +426,20 @@ public class CraneManagerService : ICraneManagerService
             Log.Warning("[CraneMgr] 🚨 鹤位 {Id} 联锁破坏自动急停触发：{Name} - {Reason}",
                 e.CraneId, e.ItemName, e.Reason);
 
-            // 1. 立即下发急停指令（关阀+停泵）
+            // 1. 立即下发急停指令（关阀+停泵）— PLC 指令本身不涉及 UI，可直接调用
             await _plc.EmergencyStopAsync(e.CraneId);
-            crane.Status = CraneStatus.EmergencyStop;
-            crane.IsEmergencyStop = true;
-            crane.AlarmMessage = $"🚨 联锁破坏：{e.ItemName} - {e.Reason}，已自动急停";
+
+            // P0 fix: UI 绑定属性修改切回 Dispatcher 线程
+            var order = crane.CurrentOrder;  // 捕获局部引用，防止竞态
+            var loadedWeight = crane.RealtimeData.LoadedWeight;
+            var dispatchTime = order?.DispatchTime ?? DateTime.Now;
+
+            Application.Current?.Dispatcher.Invoke(() =>
+            {
+                crane.Status = CraneStatus.EmergencyStop;
+                crane.IsEmergencyStop = true;
+                crane.AlarmMessage = $"🚨 联锁破坏：{e.ItemName} - {e.Reason}，已自动急停";
+            });
 
             // 2. 记录 Critical 报警
             await _alarm.RaiseAsync(
@@ -390,15 +448,14 @@ public class CraneManagerService : ICraneManagerService
                 $"安全联锁破坏：{e.ItemName}",
                 $"原因: {e.Reason}；鹤位已自动急停，需现场复位后重新全检8项联锁");
 
-            // 3. 异常中断事件回传（IsAborted=true 标记，订阅方可区分正常完成与急停中断，
-            //    避免把未达定量的订单误标记为 Completed 回传 SAP/ERP）
-            if (crane.CurrentOrder != null)
+            // 3. 异常中断事件回传（IsAborted=true 标记，使用局部 order 引用避免竞态 NRE）
+            if (order != null)
             {
                 OnCraneCompleted?.Invoke(this, new CraneCompletedArgs
                 {
                     CraneId = e.CraneId,
-                    ActualWeight = crane.RealtimeData.LoadedWeight,
-                    StartTime = crane.CurrentOrder.DispatchTime ?? DateTime.Now,
+                    ActualWeight = loadedWeight,
+                    StartTime = dispatchTime,
                     EndTime = DateTime.Now,
                     IsAborted = true,
                     AbortReason = $"{e.ItemName}: {e.Reason}"
