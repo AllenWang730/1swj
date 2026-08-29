@@ -167,6 +167,43 @@ public class ErpService : IErpService
         }
     }
 
+    /// <summary>
+    /// ★ Bug fix: 实现 IErpService.ReportExceptionAsync（接口新增，CancelDispatchAsync 取消单据路径需要）。
+    /// 之前 IErpService 接口没定义此方法，OrderManagementService.CancelDispatchAsync 中调用
+    /// _erpService.ReportExceptionAsync 会触发 CS1061（找不到 ReportExceptionAsync 定义），导致编译失败。
+    /// 正常流程：取消/急停/异常中断都会调用本方法，把 errorCode（CANCELLED/ABORTED 等）+ errorMessage 回传到 ERP
+    /// REST API /api/orders/exception。仿真模式直接返回 true，便于本地联调。
+    /// </summary>
+    public async Task<bool> ReportExceptionAsync(string orderNo, string errorCode, string errorMessage, CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            Log.Warning("[ERP] 回传单号异常: {OrderNo}, {Code}:{Msg}", orderNo, errorCode, errorMessage);
+            if (_config.AppSettings.EnableSimulation)
+            {
+                await Task.Delay(80, cancellationToken);
+                return true;
+            }
+
+            var payload = new
+            {
+                orderNo,
+                errorCode,
+                errorMessage,
+                reportedAt = DateTime.Now.ToString("yyyy-MM-ddTHH:mm:ss")
+            };
+            var content = new StringContent(JsonConvert.SerializeObject(payload), Encoding.UTF8, "application/json");
+            var response = await _httpClient.PostAsync("/api/orders/exception", content, cancellationToken);
+            return response.IsSuccessStatusCode;
+        }
+        catch (Exception ex)
+        {
+            Log.Error(ex, "[ERP] 回传异常失败 {OrderNo}", orderNo);
+            // 仿真模式下：HTTP 请求失败不应阻塞本地取消流程；返回 EnableSimulation 作为兜底真值
+            return _config.AppSettings.EnableSimulation;
+        }
+    }
+
     private static List<LoadingOrder> GenerateMockErpOrders()
     {
         var rnd = new Random(99);

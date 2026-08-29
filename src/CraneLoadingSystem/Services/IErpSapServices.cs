@@ -54,6 +54,14 @@ public interface IErpService
     /// <param name="status">回传状态码：默认 "COMPLETED"；异常中断回传部分量时传 "ABORTED"</param>
     Task<bool> ConfirmOrderCompleteAsync(string orderNo, double actualWeight, string craneId,
         string status = "COMPLETED", CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// 回传单号异常/取消状态
+    /// </summary>
+    /// <param name="errorCode">异常码，例如 "CANCELLED"（操作员取消）、"ABORTED"（急停中断）、"DISPATCH_FAIL"（下发失败）</param>
+    /// <param name="errorMessage">人类可读的异常描述</param>
+    /// <param name="cancellationToken">取消令牌</param>
+    Task<bool> ReportExceptionAsync(string orderNo, string errorCode, string errorMessage, CancellationToken cancellationToken = default);
 }
 
 public class CustomerInfo
