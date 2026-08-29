@@ -76,16 +76,63 @@
     <SolidColorBrush x:Key="TextOnDanger"   Color="#FFFFFFFF"/>
 
     <!-- 主色画刷 -->
-    <SolidColorBrush x:Key="PrimaryBrush"      Color="{StaticResource Primary-600}"/>
-    <SolidColorBrush x:Key="PrimaryLightBrush" Color="{StaticResource Primary-500}"/>
-    <SolidColorBrush x:Key="SuccessBrush"      Color="{StaticResource Success-500}"/>
+    <SolidColorBrush x:Key="PrimaryBrush"       Color="{StaticResource Primary-600}"/>
+    <SolidColorBrush x:Key="PrimaryLightBrush"  Color="{StaticResource Primary-500}"/>
+    <SolidColorBrush x:Key="SuccessBrush"       Color="{StaticResource Success-500}"/>
     <SolidColorBrush x:Key="SuccessForegroundBrush" Color="{StaticResource Success-400}"/>
-    <SolidColorBrush x:Key="WarningBrush"      Color="{StaticResource Warning-500}"/>
-    <SolidColorBrush x:Key="DangerBrush"       Color="{StaticResource Danger-500}"/>
-    <SolidColorBrush x:Key="DangerDarkBrush"   Color="{StaticResource Danger-700}"/>
-    <SolidColorBrush x:Key="InfoBrush"         Color="{StaticResource Info-500}"/>
-    <SolidColorBrush x:Key="Gray3Brush"        Color="{StaticResource Gray-300}"/>
+    <SolidColorBrush x:Key="WarningBrush"       Color="{StaticResource Warning-500}"/>
+    <SolidColorBrush x:Key="DangerBrush"        Color="{StaticResource Danger-500}"/>
+    <SolidColorBrush x:Key="DangerDarkBrush"    Color="{StaticResource Danger-700}"/>
+    <SolidColorBrush x:Key="InfoBrush"          Color="{StaticResource Info-500}"/>
+    <SolidColorBrush x:Key="Gray3Brush"         Color="{StaticResource Gray-300}"/>
     <SolidColorBrush x:Key="CardBackgroundBrush" Color="{StaticResource Gray-50}"/>
+
+    <!-- ★ Bug fix: 为所有 Color Token 补齐同名 "Brush 版本"。
+         之前只定义了 <Color x:Key="Primary-500"/> 等 Color 资源，但 CranePositionCard / MainWindow /
+         DispatchOrderDialog 中直接把它们当 Brush 使用（Background="{StaticResource Primary-500}"），
+         运行时 WPF 找不到 TypeConverter 从 Color 到 Brush 的自动转换，因此抛出：
+           XamlParseException(设置属性 Panel.Background) → ArgumentException("#FF6366F1" 不是属性 Background 的有效值)。
+         修复方式：为每一个在 XAML 里被当作 Brush 使用的 Token（* -50/-100/-400/-500/-600 等）各定义一份
+         SolidColorBrush 资源，键名与 Color 相同，XAML 解析器根据 StaticResource 的"后续定义覆盖"规则，
+         会自动解析到最末声明的这份 Brush；同时 SolidColorBrush.Color 里仍引用原始 Color，语义不变。 -->
+    <!-- 中性灰阶画刷（与 Color token 同名，XAML 中 Background/Foreground 可直接用） -->
+    <SolidColorBrush x:Key="Gray-50"   Color="{StaticResource Gray-50}"/>
+    <SolidColorBrush x:Key="Gray-100"  Color="{StaticResource Gray-100}"/>
+    <SolidColorBrush x:Key="Gray-200"  Color="{StaticResource Gray-200}"/>
+    <SolidColorBrush x:Key="Gray-300"  Color="{StaticResource Gray-300}"/>
+    <SolidColorBrush x:Key="Gray-400"  Color="{StaticResource Gray-400}"/>
+    <SolidColorBrush x:Key="Gray-500"  Color="{StaticResource Gray-500}"/>
+    <SolidColorBrush x:Key="Gray-600"  Color="{StaticResource Gray-600}"/>
+    <SolidColorBrush x:Key="Gray-700"  Color="{StaticResource Gray-700}"/>
+    <SolidColorBrush x:Key="Gray-800"  Color="{StaticResource Gray-800}"/>
+    <SolidColorBrush x:Key="Gray-900"  Color="{StaticResource Gray-900}"/>
+    <!-- 主色画刷（Primary） -->
+    <SolidColorBrush x:Key="Primary-50"  Color="{StaticResource Primary-50}"/>
+    <SolidColorBrush x:Key="Primary-100" Color="{StaticResource Primary-100}"/>
+    <SolidColorBrush x:Key="Primary-500" Color="{StaticResource Primary-500}"/>
+    <SolidColorBrush x:Key="Primary-600" Color="{StaticResource Primary-600}"/>
+    <SolidColorBrush x:Key="Primary-700" Color="{StaticResource Primary-700}"/>
+    <!-- 强调色画刷（Accent） -->
+    <SolidColorBrush x:Key="Accent-400" Color="{StaticResource Accent-400}"/>
+    <SolidColorBrush x:Key="Accent-500" Color="{StaticResource Accent-500}"/>
+    <SolidColorBrush x:Key="Accent-600" Color="{StaticResource Accent-600}"/>
+    <!-- 语义色画刷（Success / Warning / Danger / Info） -->
+    <SolidColorBrush x:Key="Success-50"  Color="{StaticResource Success-50}"/>
+    <SolidColorBrush x:Key="Success-400" Color="{StaticResource Success-400}"/>
+    <SolidColorBrush x:Key="Success-500" Color="{StaticResource Success-500}"/>
+    <SolidColorBrush x:Key="Success-600" Color="{StaticResource Success-600}"/>
+    <SolidColorBrush x:Key="Warning-50"  Color="{StaticResource Warning-50}"/>
+    <SolidColorBrush x:Key="Warning-400" Color="{StaticResource Warning-400}"/>
+    <SolidColorBrush x:Key="Warning-500" Color="{StaticResource Warning-500}"/>
+    <SolidColorBrush x:Key="Danger-50"   Color="{StaticResource Danger-50}"/>
+    <SolidColorBrush x:Key="Danger-400"  Color="{StaticResource Danger-400}"/>
+    <SolidColorBrush x:Key="Danger-500"  Color="{StaticResource Danger-500}"/>
+    <SolidColorBrush x:Key="Danger-600"  Color="{StaticResource Danger-600}"/>
+    <SolidColorBrush x:Key="Danger-700"  Color="{StaticResource Danger-700}"/>
+    <SolidColorBrush x:Key="Info-50"     Color="{StaticResource Info-50}"/>
+    <SolidColorBrush x:Key="Info-400"    Color="{StaticResource Info-400}"/>
+    <SolidColorBrush x:Key="Info-500"    Color="{StaticResource Info-500}"/>
+    <SolidColorBrush x:Key="Info-600"    Color="{StaticResource Info-600}"/>
 
     <!-- 卡片阴影（用 DropShadowEffect 模拟） -->
     <DropShadowEffect x:Key="ShadowCardSm" Color="#FF000000" BlurRadius="4"  ShadowDepth="0" Opacity="0.06"/>
