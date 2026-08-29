@@ -140,16 +140,26 @@ public class SafetyInterlockService : ISafetyInterlockService
             return null;
         }
 
-        // 非装车中（Idle/Completed/Fault）：仅刷新信号，不触发急停
+        // 非装车中（Idle/Completed/Fault/Offline/EmergencyStop）：刷新信号并同步 UI 显示状态，
+        // ★ Bug fix: 之前仅清 IsAlarming/IsFlashing，不更新 StartupSatisfied / crane.MissingInterlockNames，
+        //   导致"启动前联锁不满足"的红色警告永远残留在卡片上（即使现场早已恢复）。
+        //   装车外场景没有安全风险，但 UI 残留报警会误导操作员以为设备仍有问题。
         bool inLoading = currentStatus is CraneStatus.Loading or CraneStatus.Paused;
         if (!inLoading)
         {
+            var notReady = new List<SafetyInterlockItem>();
             foreach (var item in crane.SafetyInterlocks)
             {
                 item.SignalValue = ReadSignal(io, item.Kind);
+                item.StartupSatisfied = EvaluateStartup(item);
                 item.IsAlarming = false;
                 item.IsFlashing = false;
+                if (!item.StartupSatisfied) notReady.Add(item);
             }
+            crane.AllInterlocksSatisfied = notReady.Count == 0;
+            crane.MissingInterlockNames = notReady.Count == 0
+                ? null
+                : "缺失: " + string.Join("、", notReady.Select(f => f.Name));
             return null;
         }
 

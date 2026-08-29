@@ -163,9 +163,9 @@ public partial class OrderManagementService : ObservableObject, IOrderManagement
             // P2 fix: 取消单据后回传 SAP/ERP（原代码遗漏，导致 SAP 侧仍显示 Dispatched 状态，账实不符）
             try
             {
-                if (orderToCancel.Source == OrderSource.Sap)
+                if (orderToCancel.Source == OrderSource.SAP)
                     await _sapService.ReportExceptionAsync(orderToCancel.OrderNo, "CANCELLED", "单据取消");
-                else if (orderToCancel.Source == OrderSource.Erp)
+                else if (orderToCancel.Source == OrderSource.ERP)
                     await _erpService.ReportExceptionAsync(orderToCancel.OrderNo, "CANCELLED", "单据取消");
             }
             catch (Exception exSap)
@@ -261,10 +261,12 @@ public partial class OrderManagementService : ObservableObject, IOrderManagement
 
             var order = crane.CurrentOrder;
 
-            // 幂等守卫
-            if (order.Status == OrderStatus.Cancelled)
+            // 幂等守卫：异常中断回调仅在订单处于"活跃状态"时生效。
+            // 已 Completed（正常完成）或已 Cancelled（重复异常回调）都直接跳过，避免覆盖 SAP/ERP 侧状态。
+            if (order.Status is OrderStatus.Cancelled or OrderStatus.Completed)
             {
-                Log.Information("[OrderMgr] 单据 {OrderNo} 已是 Cancelled 状态，跳过重复异常回传", order.OrderNo);
+                Log.Information("[OrderMgr] 单据 {OrderNo} 状态 {Status}，跳过重复异常回传",
+                    order.OrderNo, order.Status);
                 return true;
             }
 

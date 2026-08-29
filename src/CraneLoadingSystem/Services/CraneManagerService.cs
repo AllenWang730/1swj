@@ -222,8 +222,10 @@ public class CraneManagerService : ICraneManagerService
             return false;
         }
         var ok = await _plc.RemotePauseAsync(craneId);
-        // ★ 同步 UI 状态：暂停后立即反映到卡片，否则用户感知"按钮没反应"
-        if (ok && crane != null && crane.Status == CraneStatus.Loading)
+        // ★ Bug fix: 只要暂停指令成功就立即同步 UI 状态为 Paused，
+        //   之前条件限定 crane.Status == Loading 太窄：若 PLC 状态尚未刷新则按钮"按了没反应"。
+        //   立即反映到卡片，由下一次 RefreshTimer 再次校正保证一致性。
+        if (ok && crane != null && crane.Status != CraneStatus.Paused)
             crane.Status = CraneStatus.Paused;
         return ok;
     }
@@ -257,7 +259,11 @@ public class CraneManagerService : ICraneManagerService
         }
 
         crane.AlarmMessage = null;
-        return await _plc.RemoteResumeAsync(craneId);
+        // ★ Bug fix: 恢复装料指令成功后立即同步 UI 到 Loading，
+        //   否则依赖 RefreshTimer 会产生数百毫秒的"按下后按钮灰没变化"感知差。
+        var resumeOk = await _plc.RemoteResumeAsync(craneId);
+        if (resumeOk) crane.Status = CraneStatus.Loading;
+        return resumeOk;
     }
 
     public async Task<bool> EmergencyStopAsync(string craneId)
@@ -326,8 +332,22 @@ public class CraneManagerService : ICraneManagerService
 
         crane.IsEmergencyStop = false;
         crane.AlarmMessage = null;  // ★ 复位成功，清卡片报警文本
-        crane.Status = CraneStatus.Idle;
-        Log.Information("[CraneMgr] 鹤位 {Id} 急停复位成功（8项联锁全通过）", craneId);
+        // ★ Bug fix: 复位后的状态需区分"是否仍有挂单"
+        //   - EmergencyReset 语义是"清急停条件，恢复可启动状态"
+        //   - 如果仍挂着 Dispatched 单据（Ready 时按下急停，从未进入 InProgress 所以
+        //     NotifyOrderAbortedAsync 没触发、CurrentOrder 未清空），应回到 Ready，
+        //     让操作员点击【启动】重新走"人员确认 + 联锁全检"流程。
+        //   - 若 InProgress 单据被急停 → 事件已转 Cancelled → CurrentOrder 已清空 → 回到 Idle。
+        //   - 若 CurrentOrder == null → 回到 Idle，可接收新下发。
+        //   之前无条件置 Idle 的问题：CurrentOrder != null 时 GetAvailableCranesForProduct
+        //   会把该鹤位视作空闲允许新下发，覆盖旧单据引用（旧单永远卡在 ActiveOrders.Dispatched）。
+        if (crane.CurrentOrder != null
+            && crane.CurrentOrder.Status == OrderStatus.Dispatched)
+            crane.Status = CraneStatus.Ready;
+        else
+            crane.Status = CraneStatus.Idle;
+        Log.Information("[CraneMgr] 鹤位 {Id} 急停复位成功（8项联锁全通过，状态={Status}）",
+            craneId, crane.Status);
         return true;
     }
 
@@ -373,22 +393,22 @@ public class CraneManagerService : ICraneManagerService
                     // 3. 清零所有鹤位信息（实时数据/报警/订单引用/联锁状态/状态→Idle）
                     crane.ResetCrane();
 
-                // 4. 显式设回 Idle（ResetCrane 已设，但显式表达意图，并触发 UI 刷新）
-                crane.Status = CraneStatus.Idle;
-                crane.IsEmergencyStop = false;
-                crane.AlarmMessage = null;
-                crane.IsPlcConnected = _plc.IsConnected;
-                crane.LastUpdateTime = DateTime.Now;
+                    // 4. 显式设回 Idle（ResetCrane 已设，但显式表达意图，并触发 UI 刷新）
+                    crane.Status = CraneStatus.Idle;
+                    crane.IsEmergencyStop = false;
+                    crane.AlarmMessage = null;
+                    crane.IsPlcConnected = _plc.IsConnected;
+                    crane.LastUpdateTime = DateTime.Now;
 
-                Log.Information("[CraneMgr] 全局复位：鹤位 {Id} 已清零恢复空闲", crane.Id);
-                successCount++;
+                    Log.Information("[CraneMgr] 全局复位：鹤位 {Id} 已清零恢复空闲", crane.Id);
+                    successCount++;
+                }
+                catch (Exception ex)
+                {
+                    Log.Error(ex, "[CraneMgr] 全局复位：鹤位 {Id} 异常", crane.Id);
+                    crane.AlarmMessage = $"复位异常：{ex.Message}";
+                }
             }
-            catch (Exception ex)
-            {
-                Log.Error(ex, "[CraneMgr] 全局复位：鹤位 {Id} 异常", crane.Id);
-                crane.AlarmMessage = $"复位异常：{ex.Message}";
-            }
-        }
 
             Log.Information("[CraneMgr] 全局复位完成：成功 {Success}/{Total}",
                 successCount, Cranes.Count);

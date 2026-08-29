@@ -418,12 +418,14 @@
                             <Style TargetType="Button" BasedOn="{StaticResource ButtonSuccess}">
                                 <Setter Property="IsEnabled" Value="False"/>
                                 <Style.Triggers>
+                                    <!-- ★ Bug fix: 仅在 Ready 状态下允许点击【▶ 启动】。
+                                         Idle=无单据，必须先下发单据（下发成功后状态变 Ready）。
+                                         之前允许 Idle 点击会弹出"请先下发"警告框，既违反安全流又误导操作员。 -->
                                     <DataTrigger Binding="{Binding Status}" Value="Ready">
                                         <Setter Property="IsEnabled" Value="True"/>
                                     </DataTrigger>
-                                    <DataTrigger Binding="{Binding Status}" Value="Idle">
-                                        <Setter Property="IsEnabled" Value="True"/>
-                                    </DataTrigger>
+                                    <!-- ★ 已暂停：恢复按钮走 PauseCommand，启动按钮保持禁用。
+                                         Paused 状态下恢复会重新全检联锁 + 人员再次确认（PauseCommand 内处理）。 -->
                                 </Style.Triggers>
                             </Style>
                         </Button.Style>
