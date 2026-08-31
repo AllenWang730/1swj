@@ -73,11 +73,19 @@ public partial class CranePositionCard : System.Windows.Controls.UserControl, ID
 
     private static void OnCraneChanged(DependencyObject d, DependencyPropertyChangedEventArgs e)
     {
-        if (d is CranePositionCard card && e.NewValue is CranePosition crane)
+        if (d is CranePositionCard card)
         {
-            card.DataContext = crane;
-            if (crane != null)
-                crane.PropertyChanged += card.Crane_PropertyChanged;
+            // 退订旧鹤位的 PropertyChanged，避免内存泄漏与重复回调。
+            // 原实现仅订阅新值、从不退订旧值，导致鹤位切换或置 null 时旧实例仍被卡片
+            // 持有引用（泄漏），且旧鹤位状态变化仍会触发本卡片的 Crane_PropertyChanged。
+            if (e.OldValue is CranePosition oldCrane)
+                oldCrane.PropertyChanged -= card.Crane_PropertyChanged;
+
+            if (e.NewValue is CranePosition newCrane)
+            {
+                card.DataContext = newCrane;
+                newCrane.PropertyChanged += card.Crane_PropertyChanged;
+            }
             card.UpdateStatusText();
         }
     }
