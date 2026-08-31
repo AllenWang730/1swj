@@ -57,6 +57,8 @@ public class AlarmManagerService : IAlarmManagerService
     public Task<AlarmRecord> RaiseAsync(string craneId, string craneName, AlarmLevel level, string message, string? detail = null)
     {
         AlarmRecord rec;
+        // 仅在锁内分配自增 Id（保护 _nextId），不要在持有锁时调用 Dispatcher.Invoke，
+        // 否则会与 UI 线程上同样获取 _lock 的操作形成"后台线程持锁等 UI 线程 + UI 线程等锁"的经典死锁。
         lock (_lock)
         {
             rec = new AlarmRecord
@@ -70,9 +72,14 @@ public class AlarmManagerService : IAlarmManagerService
                 Detail = detail,
                 Acknowledged = false
             };
-            // P1 fix: ObservableCollection 绑定到 UI，跨线程修改会抛 InvalidOperationException
-            Application.Current?.Dispatcher.Invoke(() => Alarms.Insert(0, rec));
         }
+
+        // 释放锁后再切到 UI 线程：ObservableCollection 绑定到 UI，跨线程修改会抛异常。
+        // 在 UI 线程内部重新获取锁做 Insert，保证与后台读操作（Query/Any）对集合的互斥访问。
+        Application.Current?.Dispatcher.Invoke(() =>
+        {
+            lock (_lock) Alarms.Insert(0, rec);
+        });
 
         // 持久化到 SQLite 数据库
         _db?.InsertAlarm(rec);
