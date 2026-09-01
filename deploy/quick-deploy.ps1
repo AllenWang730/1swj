@@ -1,5 +1,7 @@
 <#
   一键异地部署脚本 — 流体装卸鹤位上位机监控系统
+  不依赖 git，纯 PowerShell + .NET SDK 即可部署。
+
   用法: 在目标 Windows 机器上打开 PowerShell，执行:
     irm https://raw.githubusercontent.com/AllenWang730/1swj/codex/bugfix-deploy/deploy/quick-deploy.ps1 | iex
 
@@ -33,12 +35,29 @@ $sdkOk = $false
 try { dotnet --list-sdks 2>$null | ForEach-Object { if($_ -match '^\s*10\.'){ $sdkOk=$true; OK $_.Trim() } } } catch {}
 if(-not $sdkOk){ FAIL "未检测到 .NET 10 SDK。请安装: https://dotnet.microsoft.com/download/dotnet/10.0 (SDK x64)" }
 
-# ---- 2. clone repo ----
-S "2/5 克隆仓库 (分支: $Branch)"
-$workDir = Join-Path $PWD.Path '1swj-deploy'
+# ---- 2. download & extract ZIP (no git required) ----
+S "2/5 下载代码 ZIP (分支: $Branch)"
+$workDir  = Join-Path $PWD.Path '1swj-deploy'
+$zipFile  = Join-Path $PWD.Path '1swj.zip'
 if(Test-Path $workDir){ Remove-Item $workDir -Recurse -Force }
-git clone --branch $Branch --depth 1 https://github.com/AllenWang730/1swj.git $workDir 2>&1 | Out-Host
-if($LASTEXITCODE -ne 0){ FAIL "git clone 失败，请检查网络/代理" }
+if(Test-Path $zipFile){ Remove-Item $zipFile -Force }
+
+$zipUrl = "https://github.com/AllenWang730/1swj/archive/refs/heads/$Branch.zip"
+try {
+    Invoke-WebRequest -Uri $zipUrl -OutFile $zipFile -UseBasicParsing
+} catch {
+    FAIL "下载失败: $($_.Exception.Message)`n请检查网络/代理，或手动下载: $zipUrl"
+}
+OK "ZIP 已下载 ($(Get-Item $zipFile | Select-Object -ExpandProperty Length) bytes)"
+
+Expand-Archive -Path $zipFile -DestinationPath $workDir -Force
+Remove-Item $zipFile -Force
+# GitHub ZIP 解压后目录名格式: 1swj-<branch名>
+$innerDir = Get-ChildItem $workDir -Directory | Select-Object -First 1
+if(-not $innerDir){ FAIL '解压后未找到子目录' }
+# 把内层目录内容提到 workDir 根
+Get-ChildItem $innerDir.FullName -Force | ForEach-Object { Move-Item $_.FullName $workDir -Force }
+Remove-Item $innerDir.FullName -Recurse -Force
 Set-Location $workDir
 OK "代码已就绪: $workDir"
 
