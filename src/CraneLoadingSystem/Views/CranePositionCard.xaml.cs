@@ -73,11 +73,21 @@ public partial class CranePositionCard : System.Windows.Controls.UserControl, ID
 
     private static void OnCraneChanged(DependencyObject d, DependencyPropertyChangedEventArgs e)
     {
-        if (d is CranePositionCard card && e.NewValue is CranePosition crane)
+        if (d is CranePositionCard card)
         {
-            card.DataContext = crane;
-            if (crane != null)
-                crane.PropertyChanged += card.Crane_PropertyChanged;
+            // P1 fix: 先退订旧值 PropertyChanged，避免内存泄漏 + 跨卡片串扰
+            if (e.OldValue is CranePosition oldCrane)
+                oldCrane.PropertyChanged -= card.Crane_PropertyChanged;
+
+            if (e.NewValue is CranePosition newCrane)
+            {
+                card.DataContext = newCrane;
+                newCrane.PropertyChanged += card.Crane_PropertyChanged;
+            }
+            else
+            {
+                card.DataContext = null;
+            }
             card.UpdateStatusText();
         }
     }

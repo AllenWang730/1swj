@@ -70,9 +70,12 @@ public class AlarmManagerService : IAlarmManagerService
                 Detail = detail,
                 Acknowledged = false
             };
-            // P1 fix: ObservableCollection 绑定到 UI，跨线程修改会抛 InvalidOperationException
-            Application.Current?.Dispatcher.Invoke(() => Alarms.Insert(0, rec));
         }
+
+        // P0 fix: Dispatcher.Invoke 必须在 lock 外执行。
+        // 原代码在 lock(_lock) 内调 Dispatcher.Invoke，后台线程持锁等 UI 线程，
+        // UI 线程若入锁（如 TrimAlarms/AcknowledgeAsync）则死锁。
+        Application.Current?.Dispatcher.Invoke(() => Alarms.Insert(0, rec));
 
         // 持久化到 SQLite 数据库
         _db?.InsertAlarm(rec);

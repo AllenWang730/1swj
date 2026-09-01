@@ -223,7 +223,8 @@ public class PlcControlService : IPlcControlService
         try
         {
             Log.Information("[PlcService] 紧急停止复位 {CraneId}", craneId);
-            if (_craneStatus[craneId] == CraneStatus.EmergencyStop)
+            // P1 fix: 用 TryGetValue 替代索引器 getter，避免 craneId 不存在时抛 KeyNotFoundException
+            if (_craneStatus.TryGetValue(craneId, out var curStatus) && curStatus == CraneStatus.EmergencyStop)
                 _craneStatus[craneId] = CraneStatus.Idle;
             // ★ 必须同步清除急停 DI 信号，否则后续 CheckStartupAsync 会因 EmergencyStop 联锁仍触发而拒绝复位
             // （现场急停按钮物理释放后由硬件回写 DI=false，仿真模式此处直接清零）
